@@ -6,6 +6,7 @@
   <title>Todo</title>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/otpauth@9/dist/otpauth.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async></script>
   <style>
     html { font-size: 125%; }
@@ -67,7 +68,8 @@
     /* Setup screen */
     .setup-view, .login-view { width: 100%; display: flex; flex-direction: column; align-items: center; }
     .setup-view.hidden, .login-view.hidden { display: none; }
-    #qrCanvas { border-radius: 12px; margin: 16px 0 12px; width: 180px; height: 180px; }
+    #qrCanvas { border-radius: 12px; margin: 16px 0 12px; background: #fff; padding: 10px; display: inline-block; }
+    #qrCanvas img, #qrCanvas canvas { display: block; }
     .setup-secret {
       font-size: 0.75rem; color: #888899; background: #22222f;
       border-radius: 8px; padding: 8px 14px; letter-spacing: 0.12em;
@@ -1066,7 +1068,7 @@
         <span>2.</span> Tap <span>+</span> → <span>Scan a QR code</span><br>
         <span>3.</span> Scan the code below, then enter the 6-digit code to confirm
       </div>
-      <img id="qrCanvas" alt="QR Code" />
+      <div id="qrCanvas"></div>
       <div class="setup-secret" id="setupSecretLabel"></div>
       <div class="totp-input-wrap">
         <label>Enter 6-digit code to confirm</label>
@@ -3027,8 +3029,12 @@
       // Generate QR code
       const uri = totp.toString(); // otpauth://totp/...
       const otpauthUri = `otpauth://totp/${encodeURIComponent('TodoApp:Rocky')}?secret=${TOTP_SECRET}&issuer=TodoApp&algorithm=SHA1&digits=6&period=30`;
-      document.getElementById('qrCanvas').src =
-        `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(otpauthUri)}`;
+      new QRCode(document.getElementById('qrCanvas'), {
+        text: otpauthUri,
+        width: 180, height: 180,
+        colorDark: '#000000', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
       document.getElementById('setupSecretLabel').textContent = 'Manual key: ' + TOTP_SECRET;
     }
 
