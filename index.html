@@ -125,6 +125,11 @@
       justify-content: space-between;
       margin-bottom: 16px;
     }
+    .habits-tab-switcher {
+      --accent: #ff9f43;
+      --accent-glow: rgba(255,159,67,0.25);
+      margin-bottom: 12px;
+    }
     .habits-sidebar-title {
       display: flex;
       align-items: center;
@@ -937,10 +942,20 @@
       font-size: 0.6rem; color: var(--text-dim); margin-top: 1px; white-space: nowrap;
     }
 
-    /* 14-day dot grid */
+    /* 7-day dot grid with week navigation */
+    .habit-grid-wrap {
+      display: flex; align-items: center; gap: 4px; margin-bottom: 14px;
+    }
+    .habit-week-btn {
+      background: none; border: none; color: var(--text-dim); cursor: pointer;
+      font-size: 1.3rem; padding: 2px 6px; border-radius: 6px; flex-shrink: 0;
+      transition: color 0.2s, background 0.2s; line-height: 1;
+    }
+    .habit-week-btn:hover { color: var(--text); background: var(--surface2); }
+    .habit-week-btn:disabled { opacity: 0.25; cursor: default; }
     .habit-grid {
-      display: flex; gap: 5px; margin-bottom: 14px; flex-wrap: nowrap;
-      overflow-x: auto; padding: 4px 2px;
+      display: flex; gap: 5px; flex: 1; justify-content: space-around;
+      flex-wrap: nowrap; padding: 4px 2px;
     }
     .habit-day {
       display: flex; flex-direction: column; align-items: center; gap: 3px; flex-shrink: 0;
@@ -1263,9 +1278,12 @@
 
 <div class="habits-sidebar">
   <div class="habits-sidebar-header">
-    <div class="habits-sidebar-title">
-      &#128293; Habits
-      <span class="tab-badge" id="badge-habits">0</span>
+    <div class="tab-switcher habits-tab-switcher" style="flex:1;margin-bottom:0;">
+      <div class="tab-btn active">
+        <span class="tab-icon">&#128293;</span>
+        <span>Habits</span>
+        <span class="tab-badge" id="badge-habits">0</span>
+      </div>
     </div>
     <button class="btn-new-habit" id="newHabitBtn">+ New Habit</button>
   </div>
@@ -2299,8 +2317,9 @@
     return habit.bestStreak || 0;
   }
 
-  function get14Days() {
-    return Array.from({ length: 14 }, (_, i) => dateStr(addDays(new Date(), i - 13)));
+  function get7Days(weekOffset) {
+    const end = addDays(new Date(), (weekOffset || 0) * 7);
+    return Array.from({ length: 7 }, (_, i) => dateStr(addDays(end, i - 6)));
   }
 
   function streakLabel(recur) {
@@ -2330,23 +2349,29 @@
     const streak  = calcStreak(habit);
     const best    = bestStreak(habit);
     const isDone  = completedToday(habit);
-    const days14  = get14Days();
     const compSet = new Set(habit.completions || []);
     const todayStr = today();
+
+    let weekOffset = 0;
+
+    function getDotsHtml() {
+      const days = get7Days(weekOffset);
+      return days.map(d => {
+        const filled = compSet.has(d);
+        const isToday = d === todayStr;
+        const dayObj = new Date(d + 'T12:00:00');
+        return `<div class="habit-day">
+          <div class="habit-dot${filled?' filled':''}${isToday?' today-ring':''}"></div>
+          <div class="habit-dot-label">${DAY_ABBR[dayObj.getDay()]}</div>
+        </div>`;
+      }).join('');
+    }
 
     const card = document.createElement('div');
     card.className = 'habit-card' + (isDone ? ' done-today' : '');
     card.dataset.id = habit.id;
 
-    const dotsHtml = days14.map(d => {
-      const filled = compSet.has(d);
-      const isToday = d === todayStr;
-      const dayObj = new Date(d + 'T12:00:00');
-      return `<div class="habit-day">
-        <div class="habit-dot${filled?' filled':''}${isToday?' today-ring':''}"></div>
-        <div class="habit-dot-label">${DAY_ABBR[dayObj.getDay()]}</div>
-      </div>`;
-    }).join('');
+    const dotsHtml = getDotsHtml();
 
     const fireEmoji = streak >= 3 ? ' <span class="streak-fire">&#128293;</span>' : '';
     const recurLabel = { daily:'Daily', weekly:'Weekly', monthly:'Monthly' }[habit.recur] || 'Daily';
@@ -2372,7 +2397,11 @@
           ${best > 0 ? `<div class="streak-best">Best: ${best}</div>` : ''}
         </div>
       </div>
-      <div class="habit-grid">${dotsHtml}</div>
+      <div class="habit-grid-wrap">
+        <button class="habit-week-btn habit-week-prev">&#8249;</button>
+        <div class="habit-grid">${dotsHtml}</div>
+        <button class="habit-week-btn habit-week-next" ${weekOffset >= 0 ? 'disabled' : ''}>&#8250;</button>
+      </div>
       <div class="habit-card-footer">
         <button class="btn-mark-done${isDone ? ' done-state' : ''}">
           ${isDone ? '&#10003; Done today' : '&#9675; Mark done'}
@@ -2387,6 +2416,23 @@
     card.querySelector('.btn-h-edit').addEventListener('click', () => openHabitModal(habit.id));
     card.querySelector('.btn-h-del').addEventListener('click', () => {
       if (confirm(`Delete "${habit.name}"?`)) deleteHabit(habit.id);
+    });
+
+    const prevBtn = card.querySelector('.habit-week-prev');
+    const nextBtn = card.querySelector('.habit-week-next');
+    const gridEl  = card.querySelector('.habit-grid');
+
+    prevBtn.addEventListener('click', () => {
+      weekOffset--;
+      gridEl.innerHTML = getDotsHtml();
+      nextBtn.disabled = weekOffset >= 0;
+    });
+    nextBtn.addEventListener('click', () => {
+      if (weekOffset < 0) {
+        weekOffset++;
+        gridEl.innerHTML = getDotsHtml();
+        nextBtn.disabled = weekOffset >= 0;
+      }
     });
 
     listEl.appendChild(card);
