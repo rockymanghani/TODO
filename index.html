@@ -654,8 +654,9 @@
       background: none; border: none; border-radius: 6px; color: var(--text-dim);
       cursor: pointer; font-size: 0.8rem; padding: 5px 7px; transition: background 0.15s, color 0.15s;
     }
-    .item-actions .btn-edit:hover   { background: var(--surface2); color: var(--accent); }
-    .item-actions .btn-delete:hover { background: rgba(255,95,109,0.12); color: var(--danger); }
+    .item-actions .btn-edit:hover    { background: var(--surface2); color: var(--accent); }
+    .item-actions .btn-delete:hover  { background: rgba(255,95,109,0.12); color: var(--danger); }
+    .item-actions .btn-gcal:hover    { background: var(--surface2); color: #4285f4; }
 
     /* Priority dot */
     .priority-dot { width: 7px; height: 7px; min-width: 7px; border-radius: 50%; }
@@ -1888,8 +1889,10 @@
   function addTodo(text, priority, due, recur, reminders) {
     text = text.trim();
     if (!text) return;
-    todos().unshift({ id: uid(), text, done: false, priority, due: due || null, recur: recur || null, reminders: reminders || [], notifiedWindows: [], created: Date.now() });
+    const todo = { id: uid(), text, done: false, priority, due: due || null, recur: recur || null, reminders: reminders || [], notifiedWindows: [], created: Date.now() };
+    todos().unshift(todo);
     save(); render();
+    if (todo.due && window.gcalPushTodo) window.gcalPushTodo(todo, null);
   }
 
   function playDing() {
@@ -1992,6 +1995,7 @@
         t.recur     = recur || null;
         t.reminders = getItemReminders(el);
         t.notifiedWindows = []; // reset so new reminders fire fresh
+        if (t.due && window.gcalPushTodo) window.gcalPushTodo(t, null);
       }
       save();
     }
@@ -2370,6 +2374,7 @@
     const card = document.createElement('div');
     card.className = 'habit-card' + (isDone ? ' done-today' : '');
     card.dataset.id = habit.id;
+    card.dataset.weekOffset = '0';
 
     const dotsHtml = getDotsHtml();
 
@@ -2424,12 +2429,14 @@
 
     prevBtn.addEventListener('click', () => {
       weekOffset--;
+      card.dataset.weekOffset = weekOffset;
       gridEl.innerHTML = getDotsHtml();
       nextBtn.disabled = weekOffset >= 0;
     });
     nextBtn.addEventListener('click', () => {
       if (weekOffset < 0) {
         weekOffset++;
+        card.dataset.weekOffset = weekOffset;
         gridEl.innerHTML = getDotsHtml();
         nextBtn.disabled = weekOffset >= 0;
       }
@@ -2440,21 +2447,59 @@
 
   // ── Actions ──
   function toggleHabitDone(id) {
-    const h = habits.find(h => h.id === id);
+    const h = habits.find(hb => hb.id === id);
     if (!h) return;
     const t = today();
-    if ((h.completions || []).includes(t)) {
-      // Undo — remove today's completion
+    const wasDone = (h.completions || []).includes(t);
+
+    if (wasDone) {
       h.completions = h.completions.filter(d => d !== t);
     } else {
-      // Mark done
       h.completions = [...(h.completions || []), t];
       const current = calcStreak(h);
       if (current > (h.bestStreak || 0)) h.bestStreak = current;
       playDing();
     }
     saveHabits();
-    renderHabits();
+
+    // Update only the toggled card in-place
+    const card = document.querySelector(`.habit-card[data-id="${id}"]`);
+    if (!card) { renderHabits(); return; }
+
+    const isDone = !wasDone;
+    card.classList.toggle('done-today', isDone);
+
+    const markBtn = card.querySelector('.btn-mark-done');
+    markBtn.className = 'btn-mark-done' + (isDone ? ' done-state' : '');
+    markBtn.innerHTML = isDone ? '&#10003; Done today' : '&#9675; Mark done';
+
+    const streak = calcStreak(h);
+    card.querySelector('.streak-num').textContent = streak;
+    card.querySelector('.streak-box').className = 'streak-box' + (streak > 0 ? ' active' : '');
+    const bestEl = card.querySelector('.streak-best');
+    if (bestEl) bestEl.textContent = h.bestStreak > 0 ? `Best: ${h.bestStreak}` : '';
+
+    // Re-render only this card's dot grid at its current week offset
+    const weekOffset = parseInt(card.dataset.weekOffset || '0');
+    const days = get7Days(weekOffset);
+    const compSet = new Set(h.completions || []);
+    const todayStr = today();
+    card.querySelector('.habit-grid').innerHTML = days.map(d => {
+      const filled = compSet.has(d);
+      const isToday = d === todayStr;
+      const dayObj = new Date(d + 'T12:00:00');
+      return `<div class="habit-day">
+        <div class="habit-dot${filled?' filled':''}${isToday?' today-ring':''}"></div>
+        <div class="habit-dot-label">${DAY_ABBR[dayObj.getDay()]}</div>
+      </div>`;
+    }).join('');
+
+    // Update global counts
+    const doneToday = habits.filter(hb => completedToday(hb)).length;
+    document.getElementById('habitCount').innerHTML =
+      `<span>${doneToday}</span> / <span>${habits.length}</span> done today`;
+    document.getElementById('badge-habits').textContent =
+      habits.filter(hb => !completedToday(hb)).length;
   }
 
   function deleteHabit(id) {
@@ -2693,7 +2738,6 @@
       gcalSelected = key;
       renderGcalGrid();
       renderDayPanel(key);
-      if (gcalToken && !gcalEvents[key]) fetchEventsForMonth();
     }
 
     function renderDayPanel(key) {
@@ -2747,8 +2791,10 @@
       panel.classList.add('visible');
     }
 
+    let gcalFetching = false;
     async function fetchEventsForMonth() {
-      if (!gcalToken) return;
+      if (!gcalToken || gcalFetching) return;
+      gcalFetching = true;
       const y = gcalDate.getFullYear();
       const mo = gcalDate.getMonth();
       const start = new Date(y, mo, 1).toISOString();
@@ -2772,6 +2818,7 @@
         renderGcalGrid();
         if (gcalSelected) renderDayPanel(gcalSelected);
       } catch(e) { console.warn('GCal fetch failed', e); }
+      finally { gcalFetching = false; }
     }
 
     function updateConnectBtn() {
@@ -2793,7 +2840,7 @@
       }
       const tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: GCAL_CLIENT_ID,
-        scope: 'https://www.googleapis.com/auth/calendar.readonly',
+        scope: 'https://www.googleapis.com/auth/calendar.events',
         callback: (resp) => {
           if (resp.error) return;
           gcalToken = resp.access_token;
@@ -2830,6 +2877,48 @@
     gcalSelected = todayKey;
     renderGcalGrid();
     renderDayPanel(todayKey);
+
+    // ── Push a todo to Google Calendar ──
+    window.gcalPushTodo = async function(todo, btnEl) {
+      if (!gcalToken) {
+        alert('Connect Google Calendar first (click the button in the calendar panel).');
+        return;
+      }
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      const start = new Date(todo.due);
+      const end   = new Date(todo.due + 30 * 60 * 1000); // 30 min event
+      const reminderOverrides = (todo.reminders || []).map(m => ({ method: 'popup', minutes: m }));
+
+      const body = {
+        summary: todo.text,
+        description: (todo.recur ? `Repeating: ${todo.recur}. ` : '') + 'Added from Todo App.',
+        start: { dateTime: start.toISOString(), timeZone: tz },
+        end:   { dateTime: end.toISOString(),   timeZone: tz },
+        reminders: {
+          useDefault: reminderOverrides.length === 0,
+          overrides:  reminderOverrides
+        }
+      };
+
+      try {
+        const res = await fetch(
+          'https://www.googleapis.com/calendar/v3/calendars/primary/events',
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${gcalToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          }
+        );
+        if (res.ok) {
+          gcalEvents = {};
+          fetchEventsForMonth();
+        } else if (res.status === 401 || res.status === 403) {
+          gcalToken = null;
+          sessionStorage.removeItem('gcal_token');
+          updateConnectBtn();
+        }
+      } catch(e) { console.warn('GCal push failed', e); }
+    };
   })();
 
   /* ── Mobile navigation ── */
