@@ -256,6 +256,21 @@
     }
     .gcal-section-label:first-child { margin-top: 0; }
 
+    /* ── Logout buttons ── */
+    .desktop-logout {
+      position: fixed; top: 16px; right: 20px; z-index: 400;
+      background: none; border: 1.5px solid var(--border); border-radius: 8px;
+      color: var(--text-dim); cursor: pointer; font-size: 0.72rem; font-weight: 600;
+      padding: 6px 12px; transition: border-color 0.2s, color 0.2s;
+    }
+    .desktop-logout:hover { border-color: var(--danger); color: var(--danger); }
+    .drawer-logout { margin-top: auto; border-top: 1.5px solid var(--border); }
+    .drawer-logout:hover { color: var(--danger) !important; background: rgba(255,95,109,0.08) !important; }
+
+    @media (max-width: 768px) {
+      .desktop-logout { display: none; }
+    }
+
     /* ── Mobile nav (hidden on desktop) ── */
     .mobile-header { display: none; }
     .mobile-drawer-overlay { display: none; }
@@ -281,7 +296,7 @@
       .mobile-drawer-overlay.visible { display: block; }
 
       .mobile-drawer {
-        display: block; position: fixed; top: 0; left: 0; bottom: 0; width: 260px;
+        display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; width: 260px;
         background: var(--surface); border-right: 1.5px solid var(--border);
         z-index: 700; transform: translateX(-100%); transition: transform 0.25s ease;
         padding-top: 0;
@@ -1149,7 +1164,12 @@
   <div class="drawer-item" data-mobile-tab="habits">
     <span class="drawer-icon">🔥</span> Habits
   </div>
+  <div class="drawer-item drawer-logout" id="drawerLogout">
+    <span class="drawer-icon">🚪</span> Log Out
+  </div>
 </div>
+
+<button class="desktop-logout" id="desktopLogout">&#128682; Log Out</button>
 
 <div class="main-layout">
 
@@ -2105,7 +2125,10 @@
       filter = 'active';
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      document.getElementById('app').className = 'app tab-' + activeTab;
+      const appEl = document.getElementById('app');
+      const wasMobileActive = appEl.classList.contains('mobile-active');
+      appEl.className = 'app tab-' + activeTab;
+      if (wasMobileActive) appEl.classList.add('mobile-active');
       document.querySelectorAll('.filters button').forEach(b => {
         b.classList.toggle('active', b.dataset.filter === 'active');
       });
@@ -2658,6 +2681,14 @@
   // Initial habits render
   renderHabits();
 
+  // ── Logout ──
+  function doLogout() {
+    localStorage.removeItem('todo_auth');
+    location.reload();
+  }
+  document.getElementById('desktopLogout').addEventListener('click', doLogout);
+  document.getElementById('drawerLogout').addEventListener('click', doLogout);
+
   /* ── Google Calendar ── */
   (function() {
     // ⚠️ Paste your Google OAuth Client ID here after setting up Google Cloud Console
@@ -3027,7 +3058,7 @@
     }
 
     // Already logged in this session
-    if (sessionStorage.getItem(SESSION_KEY) === '1') {
+    if (localStorage.getItem(SESSION_KEY) === '1') {
       screen.classList.add('hidden');
       return;
     }
@@ -3083,7 +3114,7 @@
       const pass = document.getElementById('loginPass').value;
       const code = document.getElementById('loginTotp').value.trim();
       if (user === 'Rocky' && pass === 'Rakesh20' && verifyCode(code)) {
-        sessionStorage.setItem(SESSION_KEY, '1');
+        localStorage.setItem(SESSION_KEY, '1');
         screen.classList.add('hidden');
       } else {
         document.getElementById('loginTotp').value = '';
