@@ -6,7 +6,6 @@
   <title>Todo</title>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/otpauth@9/dist/otpauth.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcode@1/build/qrcode.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async></script>
   <style>
     html { font-size: 125%; }
@@ -68,7 +67,7 @@
     /* Setup screen */
     .setup-view, .login-view { width: 100%; display: flex; flex-direction: column; align-items: center; }
     .setup-view.hidden, .login-view.hidden { display: none; }
-    #qrCanvas { border-radius: 12px; margin: 16px 0 12px; background: #fff; padding: 10px; }
+    #qrCanvas { border-radius: 12px; margin: 16px 0 12px; width: 180px; height: 180px; }
     .setup-secret {
       font-size: 0.75rem; color: #888899; background: #22222f;
       border-radius: 8px; padding: 8px 14px; letter-spacing: 0.12em;
@@ -1067,7 +1066,7 @@
         <span>2.</span> Tap <span>+</span> → <span>Scan a QR code</span><br>
         <span>3.</span> Scan the code below, then enter the 6-digit code to confirm
       </div>
-      <canvas id="qrCanvas"></canvas>
+      <img id="qrCanvas" alt="QR Code" />
       <div class="setup-secret" id="setupSecretLabel"></div>
       <div class="totp-input-wrap">
         <label>Enter 6-digit code to confirm</label>
@@ -3027,9 +3026,9 @@
     } else {
       // Generate QR code
       const uri = totp.toString(); // otpauth://totp/...
-      const label = `TOTP App:Rocky?secret=${TOTP_SECRET}&issuer=TodoApp`;
       const otpauthUri = `otpauth://totp/${encodeURIComponent('TodoApp:Rocky')}?secret=${TOTP_SECRET}&issuer=TodoApp&algorithm=SHA1&digits=6&period=30`;
-      QRCode.toCanvas(document.getElementById('qrCanvas'), otpauthUri, { width: 180, color: { dark: '#000', light: '#fff' } });
+      document.getElementById('qrCanvas').src =
+        `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(otpauthUri)}`;
       document.getElementById('setupSecretLabel').textContent = 'Manual key: ' + TOTP_SECRET;
     }
 
