@@ -3133,7 +3133,7 @@
       const user = document.getElementById('loginUser').value.trim();
       const pass = document.getElementById('loginPass').value;
       const code = document.getElementById('loginTotp').value.trim();
-      if (user === 'Rocky' && pass === 'Rakesh20' && verifyCode(code)) {
+      if (user === 'Rocky' && pass === 'Rocky' && verifyCode(code)) {
         localStorage.setItem(SESSION_KEY, '1');
         screen.classList.add('hidden');
       } else {
