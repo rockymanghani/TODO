@@ -1465,7 +1465,7 @@
   function loadTab(tab) {
     try { return JSON.parse(localStorage.getItem(KEYS[tab])) || []; } catch { return []; }
   }
-  function save() { localStorage.setItem(KEYS[activeTab], JSON.stringify(data[activeTab])); scheduleDriveSave(); }
+  function save() { localStorage.setItem(KEYS[activeTab], JSON.stringify(data[activeTab])); if (window.scheduleDriveSave) window.scheduleDriveSave(); }
   function todos()        { return data[activeTab]; }
   function setTodos(arr)  { data[activeTab] = arr; }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
@@ -2297,7 +2297,7 @@
   function loadHabits() {
     try { return JSON.parse(localStorage.getItem(HABITS_KEY)) || []; } catch { return []; }
   }
-  function saveHabits() { localStorage.setItem(HABITS_KEY, JSON.stringify(habits)); scheduleDriveSave(); }
+  function saveHabits() { localStorage.setItem(HABITS_KEY, JSON.stringify(habits)); if (window.scheduleDriveSave) window.scheduleDriveSave(); }
 
   // ── Date helpers ──
   function dateStr(d) { return d.toISOString().slice(0, 10); }
@@ -2905,13 +2905,13 @@
       }
     }
 
-    function scheduleDriveSave() {
+    window.scheduleDriveSave = function() {
       if (!gcalToken) return;
       clearTimeout(driveSaveTimer);
       driveSaveTimer = setTimeout(async () => {
         try { await driveUpload(); } catch(e) { console.warn('Drive save failed', e); }
       }, 2000);
-    }
+    };
 
     async function driveInit() {
       if (!gcalToken) return;
