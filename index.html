@@ -1465,7 +1465,7 @@
   function loadTab(tab) {
     try { return JSON.parse(localStorage.getItem(KEYS[tab])) || []; } catch { return []; }
   }
-  function save() { localStorage.setItem(KEYS[activeTab], JSON.stringify(data[activeTab])); }
+  function save() { localStorage.setItem(KEYS[activeTab], JSON.stringify(data[activeTab])); scheduleDriveSave(); }
   function todos()        { return data[activeTab]; }
   function setTodos(arr)  { data[activeTab] = arr; }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
@@ -2297,7 +2297,7 @@
   function loadHabits() {
     try { return JSON.parse(localStorage.getItem(HABITS_KEY)) || []; } catch { return []; }
   }
-  function saveHabits() { localStorage.setItem(HABITS_KEY, JSON.stringify(habits)); }
+  function saveHabits() { localStorage.setItem(HABITS_KEY, JSON.stringify(habits)); scheduleDriveSave(); }
 
   // ── Date helpers ──
   function dateStr(d) { return d.toISOString().slice(0, 10); }
@@ -2700,6 +2700,8 @@
     let gcalSelected = null;         // selected date string 'YYYY-MM-DD'
     let gcalToken    = sessionStorage.getItem('gcal_token') || null;
     let gcalEvents   = {};           // cache: 'YYYY-MM-DD' -> array of events
+    let driveFileId  = null;
+    let driveSaveTimer = null;
 
     function dateKey(d) {
       return d.getFullYear() + '-' +
@@ -2873,6 +2875,81 @@
       finally { gcalFetching = false; }
     }
 
+    // ── Google Drive Sync ──
+    function getDrivePayload() {
+      return {
+        todos_work:     JSON.parse(localStorage.getItem('todos_work')     || '[]'),
+        todos_personal: JSON.parse(localStorage.getItem('todos_personal') || '[]'),
+        habits_v1:      JSON.parse(localStorage.getItem('habits_v1')      || '[]'),
+        notif_settings: JSON.parse(localStorage.getItem('notif_settings') || 'null'),
+        updated: new Date().toISOString()
+      };
+    }
+
+    async function driveUpload() {
+      const meta = JSON.stringify({ name: 'todo-data.json', mimeType: 'application/json' });
+      const form = new FormData();
+      form.append('metadata', new Blob([meta], { type: 'application/json' }));
+      form.append('file', new Blob([JSON.stringify(getDrivePayload())], { type: 'application/json' }));
+      const url = driveFileId
+        ? `https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=multipart`
+        : 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+      const res = await fetch(url, {
+        method: driveFileId ? 'PATCH' : 'POST',
+        headers: { Authorization: `Bearer ${gcalToken}` },
+        body: form
+      });
+      if (res.ok && !driveFileId) {
+        const d = await res.json();
+        driveFileId = d.id;
+      }
+    }
+
+    function scheduleDriveSave() {
+      if (!gcalToken) return;
+      clearTimeout(driveSaveTimer);
+      driveSaveTimer = setTimeout(async () => {
+        try { await driveUpload(); } catch(e) { console.warn('Drive save failed', e); }
+      }, 2000);
+    }
+
+    async function driveInit() {
+      if (!gcalToken) return;
+      try {
+        // Find existing file
+        const res = await fetch(
+          "https://www.googleapis.com/drive/v3/files?q=name%3D'todo-data.json'%20and%20trashed%3Dfalse&spaces=drive&fields=files(id)",
+          { headers: { Authorization: `Bearer ${gcalToken}` } }
+        );
+        if (!res.ok) return;
+        const list = await res.json();
+
+        if (list.files && list.files.length > 0) {
+          driveFileId = list.files[0].id;
+          // Download and apply cloud data
+          const dl = await fetch(
+            `https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,
+            { headers: { Authorization: `Bearer ${gcalToken}` } }
+          );
+          if (!dl.ok) return;
+          const cloud = await dl.json();
+          if (cloud.todos_work)     localStorage.setItem('todos_work',     JSON.stringify(cloud.todos_work));
+          if (cloud.todos_personal) localStorage.setItem('todos_personal', JSON.stringify(cloud.todos_personal));
+          if (cloud.habits_v1)      localStorage.setItem('habits_v1',      JSON.stringify(cloud.habits_v1));
+          if (cloud.notif_settings) localStorage.setItem('notif_settings', JSON.stringify(cloud.notif_settings));
+          // Reload in-memory state and re-render
+          data.work     = loadTab('work');
+          data.personal = loadTab('personal');
+          habits        = loadHabits();
+          render();
+          renderHabits();
+        } else {
+          // First time: upload current local data to Drive
+          await driveUpload();
+        }
+      } catch(e) { console.warn('Drive init failed', e); }
+    }
+
     function updateConnectBtn() {
       const btn = document.getElementById('gcalConnectBtn');
       if (gcalToken) {
@@ -2887,6 +2964,7 @@
     document.getElementById('gcalConnectBtn').addEventListener('click', () => {
       if (gcalToken) {
         gcalToken = null;
+        driveFileId = null;
         sessionStorage.removeItem('gcal_token');
         gcalEvents = {};
         updateConnectBtn();
@@ -2900,7 +2978,7 @@
       }
       const tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: GCAL_CLIENT_ID,
-        scope: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly',
+        scope: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.file',
         callback: (resp) => {
           if (resp.error) return;
           gcalToken = resp.access_token;
@@ -2908,6 +2986,7 @@
           updateConnectBtn();
           gcalEvents = {};
           fetchEventsForMonth();
+          driveInit();
         }
       });
       tokenClient.requestAccessToken();
