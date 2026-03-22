@@ -105,17 +105,17 @@
       padding: 32px 16px 80px;
     }
 
-    .page-layout {
+    .main-layout {
       display: flex;
-      gap: 32px;
+      gap: 20px;
       width: 100%;
-      max-width: 1140px;
+      max-width: 1600px;
       align-items: flex-start;
     }
-    .app { width: 100%; max-width: 560px; flex-shrink: 0; }
+    .app { flex: 3; min-width: 0; }
     .habits-sidebar {
-      flex: 1;
-      min-width: 280px;
+      flex: 2;
+      min-width: 0;
       padding-top: 4px;
       --accent: #ff9f43;
       --accent-glow: rgba(255,159,67,0.25);
@@ -154,24 +154,22 @@
 
     .subtitle { color: var(--text-dim); font-size: 0.875rem; margin-bottom: 32px; }
 
-    /* ── Google Calendar section ── */
-    .gcal-section {
-      width: 100%; max-width: 1140px;
+    /* ── Google Calendar sidebar ── */
+    .gcal-sidebar {
+      flex: 1;
+      min-width: 0;
       background: var(--surface);
       border: 1.5px solid var(--border);
       border-radius: 16px;
-      padding: 22px 28px 20px;
-      margin-bottom: 24px;
-      flex-shrink: 0;
+      padding: 14px 12px 16px;
     }
     .gcal-top-bar {
-      display: flex; align-items: center; justify-content: space-between;
-      margin-bottom: 16px;
+      display: flex; flex-direction: column; align-items: stretch; gap: 8px;
+      margin-bottom: 12px;
     }
-    .gcal-nav-group { display: flex; align-items: center; gap: 6px; }
+    .gcal-nav-group { display: flex; align-items: center; justify-content: space-between; }
     .gcal-month-title {
-      font-size: 1rem; font-weight: 700; color: var(--text);
-      min-width: 140px; text-align: center;
+      font-size: 0.82rem; font-weight: 700; color: var(--text); text-align: center;
     }
     .gcal-nav {
       background: none; border: none; color: var(--text-dim); cursor: pointer;
@@ -180,9 +178,9 @@
     }
     .gcal-nav:hover { color: var(--text); background: var(--surface2); }
     .gcal-connect-btn {
-      background: none; border: 1.5px solid var(--border); border-radius: 8px;
-      color: var(--text-dim); cursor: pointer; font-size: 0.72rem; font-weight: 600;
-      padding: 6px 12px; transition: border-color 0.2s, color 0.2s;
+      width: 100%; background: none; border: 1.5px solid var(--border); border-radius: 8px;
+      color: var(--text-dim); cursor: pointer; font-size: 0.65rem; font-weight: 600;
+      padding: 5px 8px; transition: border-color 0.2s, color 0.2s; text-align: center;
     }
     .gcal-connect-btn:hover { border-color: #00c4a0; color: #00c4a0; }
     .gcal-connect-btn.connected { border-color: var(--done); color: var(--done); cursor: default; }
@@ -1051,8 +1049,10 @@
   </div>
 </div>
 
-<!-- ── Google Calendar section ── -->
-<div class="gcal-section">
+<div class="main-layout">
+
+<!-- ── Google Calendar sidebar ── -->
+<div class="gcal-sidebar">
   <div class="gcal-top-bar">
     <div class="gcal-nav-group">
       <button class="gcal-nav" id="gcalPrev">&#8249;</button>
@@ -1062,22 +1062,21 @@
     <button class="gcal-connect-btn" id="gcalConnectBtn">&#128197; Connect Google Calendar</button>
   </div>
   <div class="gcal-weekdays">
-    <div class="gcal-weekday">Sun</div>
-    <div class="gcal-weekday">Mon</div>
-    <div class="gcal-weekday">Tue</div>
-    <div class="gcal-weekday">Wed</div>
-    <div class="gcal-weekday">Thu</div>
-    <div class="gcal-weekday">Fri</div>
-    <div class="gcal-weekday">Sat</div>
+    <div class="gcal-weekday">S</div>
+    <div class="gcal-weekday">M</div>
+    <div class="gcal-weekday">T</div>
+    <div class="gcal-weekday">W</div>
+    <div class="gcal-weekday">T</div>
+    <div class="gcal-weekday">F</div>
+    <div class="gcal-weekday">S</div>
   </div>
   <div class="gcal-grid" id="gcalGrid"></div>
   <div class="gcal-day-panel" id="gcalDayPanel">
     <div class="gcal-day-panel-title" id="gcalDayTitle"></div>
     <div id="gcalDayItems"></div>
   </div>
-</div>
+</div><!-- /.gcal-sidebar -->
 
-<div class="page-layout">
 <div class="app tab-personal" id="app">
   <div class="tab-switcher">
     <button class="tab-btn active" data-tab="personal">
@@ -1197,7 +1196,8 @@
     <div class="habit-list" id="habitList"></div>
   </div>
 </div><!-- /.habits-sidebar -->
-</div><!-- /.page-layout -->
+
+</div><!-- /.main-layout -->
 
 <!-- Habit create/edit modal -->
 <div class="modal-overlay" id="habitModal">
