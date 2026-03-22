@@ -1,4 +1,4 @@
-const CACHE = 'todo-app-v1';
+const CACHE = 'todo-app-v2';
 
 const PRECACHE = [
   '/TODO/',
