@@ -2806,7 +2806,7 @@
           row.className = 'gcal-item';
           row.innerHTML = `<div class="gcal-item-dot event"></div>
             <div><div class="gcal-item-name">${ev.summary || '(No title)'}</div>
-            <div class="gcal-item-time">${formatTime(ev.start?.dateTime || ev.start?.date)}</div></div>`;
+            <div class="gcal-item-time">${formatTime(ev.start?.dateTime || ev.start?.date)}${ev.end?.dateTime ? ' – ' + formatTime(ev.end.dateTime) : ''}</div></div>`;
           itemsEl.appendChild(row);
         });
       }
