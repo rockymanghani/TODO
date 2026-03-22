@@ -2970,8 +2970,15 @@
           }
         );
         if (res.ok) {
-          gcalEvents = {};
-          fetchEventsForMonth();
+          const ev = await res.json();
+          const raw = ev.start?.dateTime || ev.start?.date;
+          if (raw) {
+            const key = raw.slice(0, 10);
+            if (!gcalEvents[key]) gcalEvents[key] = [];
+            gcalEvents[key].push(ev);
+          }
+          renderGcalGrid();
+          if (gcalSelected) renderDayPanel(gcalSelected);
         } else if (res.status === 401 || res.status === 403) {
           gcalToken = null;
           sessionStorage.removeItem('gcal_token');
