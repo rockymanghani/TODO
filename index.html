@@ -7,6 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/otpauth@9/dist/otpauth.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/qrcode@1/build/qrcode.min.js"></script>
+  <script src="https://accounts.google.com/gsi/client" async></script>
   <style>
     html { font-size: 125%; }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -99,8 +100,9 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       min-height: 100vh;
       display: flex;
-      justify-content: center;
-      padding: 48px 16px 80px;
+      flex-direction: column;
+      align-items: center;
+      padding: 32px 16px 80px;
     }
 
     .page-layout {
@@ -151,6 +153,98 @@
     }
 
     .subtitle { color: var(--text-dim); font-size: 0.875rem; margin-bottom: 32px; }
+
+    /* ── Google Calendar section ── */
+    .gcal-section {
+      width: 100%; max-width: 1140px;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 16px;
+      padding: 22px 28px 20px;
+      margin-bottom: 24px;
+      flex-shrink: 0;
+    }
+    .gcal-top-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .gcal-nav-group { display: flex; align-items: center; gap: 6px; }
+    .gcal-month-title {
+      font-size: 1rem; font-weight: 700; color: var(--text);
+      min-width: 140px; text-align: center;
+    }
+    .gcal-nav {
+      background: none; border: none; color: var(--text-dim); cursor: pointer;
+      font-size: 1.2rem; padding: 4px 8px; border-radius: 8px;
+      transition: color 0.2s, background 0.2s;
+    }
+    .gcal-nav:hover { color: var(--text); background: var(--surface2); }
+    .gcal-connect-btn {
+      background: none; border: 1.5px solid var(--border); border-radius: 8px;
+      color: var(--text-dim); cursor: pointer; font-size: 0.72rem; font-weight: 600;
+      padding: 6px 12px; transition: border-color 0.2s, color 0.2s;
+    }
+    .gcal-connect-btn:hover { border-color: #00c4a0; color: #00c4a0; }
+    .gcal-connect-btn.connected { border-color: var(--done); color: var(--done); cursor: default; }
+    .gcal-weekdays {
+      display: grid; grid-template-columns: repeat(7, 1fr);
+      margin-bottom: 4px;
+    }
+    .gcal-weekday {
+      text-align: center; font-size: 0.65rem; font-weight: 600;
+      color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.04em;
+      padding: 3px 0;
+    }
+    .gcal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+    .gcal-cell {
+      aspect-ratio: 1; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      border-radius: 8px; cursor: pointer; position: relative;
+      transition: background 0.15s; color: var(--text-dim);
+    }
+    .gcal-cell:hover { background: var(--surface2); }
+    .gcal-cell.in-month { color: var(--text); }
+    .gcal-cell-num {
+      font-size: 0.8rem; font-weight: 500;
+      width: 26px; height: 26px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .gcal-cell.today .gcal-cell-num { background: #00c4a0; color: #fff; font-weight: 700; }
+    .gcal-cell.selected .gcal-cell-num { background: var(--accent); color: #fff; font-weight: 700; }
+    .gcal-cell.today.selected .gcal-cell-num { background: var(--accent); }
+    .gcal-dots {
+      display: flex; gap: 2px; position: absolute; bottom: 3px;
+    }
+    .gcal-dot { width: 4px; height: 4px; border-radius: 50%; }
+    .gcal-dot.todo { background: #00c4a0; }
+    .gcal-dot.event { background: var(--accent); }
+    /* Day panel */
+    .gcal-day-panel {
+      margin-top: 16px; border-top: 1.5px solid var(--border);
+      padding-top: 14px; display: none;
+    }
+    .gcal-day-panel.visible { display: block; }
+    .gcal-day-panel-title {
+      font-size: 0.82rem; font-weight: 700; color: var(--text); margin-bottom: 10px;
+    }
+    .gcal-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 8px 12px; background: var(--surface2);
+      border-radius: 8px; margin-bottom: 5px;
+    }
+    .gcal-item-dot {
+      width: 7px; height: 7px; border-radius: 50%; margin-top: 4px; flex-shrink: 0;
+    }
+    .gcal-item-dot.event { background: var(--accent); }
+    .gcal-item-dot.todo { background: #00c4a0; }
+    .gcal-item-name { font-size: 0.78rem; color: var(--text); font-weight: 600; }
+    .gcal-item-time { font-size: 0.7rem; color: var(--text-dim); margin-top: 1px; }
+    .gcal-empty { color: var(--text-dim); font-size: 0.78rem; padding: 4px 0; }
+    .gcal-section-label {
+      font-size: 0.65rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.07em; color: var(--text-dim); margin: 10px 0 6px;
+    }
+    .gcal-section-label:first-child { margin-top: 0; }
 
     /* ── Tab switcher ── */
     .tab-switcher {
@@ -954,6 +1048,32 @@
   <div class="cal-footer">
     <button class="cal-btn" id="calClear">Clear</button>
     <button class="cal-btn cal-btn-set" id="calSet">Set</button>
+  </div>
+</div>
+
+<!-- ── Google Calendar section ── -->
+<div class="gcal-section">
+  <div class="gcal-top-bar">
+    <div class="gcal-nav-group">
+      <button class="gcal-nav" id="gcalPrev">&#8249;</button>
+      <div class="gcal-month-title" id="gcalMonthTitle"></div>
+      <button class="gcal-nav" id="gcalNext">&#8250;</button>
+    </div>
+    <button class="gcal-connect-btn" id="gcalConnectBtn">&#128197; Connect Google Calendar</button>
+  </div>
+  <div class="gcal-weekdays">
+    <div class="gcal-weekday">Sun</div>
+    <div class="gcal-weekday">Mon</div>
+    <div class="gcal-weekday">Tue</div>
+    <div class="gcal-weekday">Wed</div>
+    <div class="gcal-weekday">Thu</div>
+    <div class="gcal-weekday">Fri</div>
+    <div class="gcal-weekday">Sat</div>
+  </div>
+  <div class="gcal-grid" id="gcalGrid"></div>
+  <div class="gcal-day-panel" id="gcalDayPanel">
+    <div class="gcal-day-panel-title" id="gcalDayTitle"></div>
+    <div id="gcalDayItems"></div>
   </div>
 </div>
 
@@ -2360,6 +2480,233 @@
 
   // Initial habits render
   renderHabits();
+
+  /* ── Google Calendar ── */
+  (function() {
+    // ⚠️ Paste your Google OAuth Client ID here after setting up Google Cloud Console
+    const GCAL_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID';
+
+    const MONTHS = ['January','February','March','April','May','June',
+                    'July','August','September','October','November','December'];
+
+    let gcalDate     = new Date();   // currently displayed month
+    let gcalSelected = null;         // selected date string 'YYYY-MM-DD'
+    let gcalToken    = sessionStorage.getItem('gcal_token') || null;
+    let gcalEvents   = {};           // cache: 'YYYY-MM-DD' -> array of events
+
+    function dateKey(d) {
+      return d.getFullYear() + '-' +
+        String(d.getMonth()+1).padStart(2,'0') + '-' +
+        String(d.getDate()).padStart(2,'0');
+    }
+
+    function todosForDate(key) {
+      const allTodos = [
+        ...(JSON.parse(localStorage.getItem('todos_work') || '[]')),
+        ...(JSON.parse(localStorage.getItem('todos_personal') || '[]'))
+      ];
+      return allTodos.filter(t => t.due && t.due.startsWith(key));
+    }
+
+    function formatTime(iso) {
+      if (!iso) return 'All day';
+      const d = new Date(iso);
+      let h = d.getHours(), m = d.getMinutes();
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      h = h % 12 || 12;
+      return h + ':' + String(m).padStart(2,'0') + ' ' + ampm;
+    }
+
+    function renderGcalGrid() {
+      const y = gcalDate.getFullYear();
+      const mo = gcalDate.getMonth();
+      document.getElementById('gcalMonthTitle').textContent = MONTHS[mo] + ' ' + y;
+
+      const firstDay = new Date(y, mo, 1).getDay();
+      const daysInMonth = new Date(y, mo+1, 0).getDate();
+      const todayKey = dateKey(new Date());
+
+      const grid = document.getElementById('gcalGrid');
+      grid.innerHTML = '';
+
+      // Leading empty cells
+      for (let i = 0; i < firstDay; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'gcal-cell';
+        grid.appendChild(cell);
+      }
+
+      // Day cells
+      for (let d = 1; d <= daysInMonth; d++) {
+        const key = y + '-' + String(mo+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+        const cell = document.createElement('div');
+        cell.className = 'gcal-cell in-month';
+        if (key === todayKey) cell.classList.add('today');
+        if (key === gcalSelected) cell.classList.add('selected');
+
+        const num = document.createElement('div');
+        num.className = 'gcal-cell-num';
+        num.textContent = d;
+        cell.appendChild(num);
+
+        // Dot indicators
+        const hasTodos = todosForDate(key).length > 0;
+        const hasEvents = (gcalEvents[key] || []).length > 0;
+        if (hasTodos || hasEvents) {
+          const dots = document.createElement('div');
+          dots.className = 'gcal-dots';
+          if (hasTodos) { const dot = document.createElement('div'); dot.className = 'gcal-dot todo'; dots.appendChild(dot); }
+          if (hasEvents) { const dot = document.createElement('div'); dot.className = 'gcal-dot event'; dots.appendChild(dot); }
+          cell.appendChild(dots);
+        }
+
+        cell.addEventListener('click', () => selectGcalDay(key));
+        grid.appendChild(cell);
+      }
+    }
+
+    function selectGcalDay(key) {
+      gcalSelected = key;
+      renderGcalGrid();
+      renderDayPanel(key);
+      if (gcalToken && !gcalEvents[key]) fetchEventsForMonth();
+    }
+
+    function renderDayPanel(key) {
+      const panel = document.getElementById('gcalDayPanel');
+      const titleEl = document.getElementById('gcalDayTitle');
+      const itemsEl = document.getElementById('gcalDayItems');
+
+      const d = new Date(key + 'T12:00:00');
+      titleEl.textContent = d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric' });
+
+      itemsEl.innerHTML = '';
+      const events = gcalEvents[key] || [];
+      const todos  = todosForDate(key);
+
+      if (events.length === 0 && todos.length === 0) {
+        itemsEl.innerHTML = '<div class="gcal-empty">Nothing scheduled for this day.</div>';
+        panel.classList.add('visible');
+        return;
+      }
+
+      if (events.length > 0) {
+        const lbl = document.createElement('div');
+        lbl.className = 'gcal-section-label';
+        lbl.textContent = 'Google Calendar';
+        itemsEl.appendChild(lbl);
+        events.forEach(ev => {
+          const row = document.createElement('div');
+          row.className = 'gcal-item';
+          row.innerHTML = `<div class="gcal-item-dot event"></div>
+            <div><div class="gcal-item-name">${ev.summary || '(No title)'}</div>
+            <div class="gcal-item-time">${formatTime(ev.start?.dateTime || ev.start?.date)}</div></div>`;
+          itemsEl.appendChild(row);
+        });
+      }
+
+      if (todos.length > 0) {
+        const lbl = document.createElement('div');
+        lbl.className = 'gcal-section-label';
+        lbl.textContent = 'Tasks due';
+        itemsEl.appendChild(lbl);
+        todos.forEach(t => {
+          const row = document.createElement('div');
+          row.className = 'gcal-item';
+          row.innerHTML = `<div class="gcal-item-dot todo"></div>
+            <div><div class="gcal-item-name">${t.text}</div>
+            <div class="gcal-item-time">${formatTime(t.due)}</div></div>`;
+          itemsEl.appendChild(row);
+        });
+      }
+
+      panel.classList.add('visible');
+    }
+
+    async function fetchEventsForMonth() {
+      if (!gcalToken) return;
+      const y = gcalDate.getFullYear();
+      const mo = gcalDate.getMonth();
+      const start = new Date(y, mo, 1).toISOString();
+      const end   = new Date(y, mo+1, 1).toISOString();
+      try {
+        const res = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
+          `timeMin=${start}&timeMax=${end}&singleEvents=true&orderBy=startTime&maxResults=250`,
+          { headers: { Authorization: `Bearer ${gcalToken}` } }
+        );
+        if (res.status === 401) { gcalToken = null; sessionStorage.removeItem('gcal_token'); updateConnectBtn(); return; }
+        const data = await res.json();
+        // Group by day
+        (data.items || []).forEach(ev => {
+          const raw = ev.start?.dateTime || ev.start?.date;
+          if (!raw) return;
+          const key = raw.slice(0, 10);
+          if (!gcalEvents[key]) gcalEvents[key] = [];
+          gcalEvents[key].push(ev);
+        });
+        renderGcalGrid();
+        if (gcalSelected) renderDayPanel(gcalSelected);
+      } catch(e) { console.warn('GCal fetch failed', e); }
+    }
+
+    function updateConnectBtn() {
+      const btn = document.getElementById('gcalConnectBtn');
+      if (gcalToken) {
+        btn.textContent = '✓ Google Calendar Connected';
+        btn.classList.add('connected');
+      } else {
+        btn.textContent = '📅 Connect Google Calendar';
+        btn.classList.remove('connected');
+      }
+    }
+
+    document.getElementById('gcalConnectBtn').addEventListener('click', () => {
+      if (gcalToken) return;
+      if (GCAL_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID') {
+        alert('Paste your Google Client ID into the GCAL_CLIENT_ID variable in the code first.');
+        return;
+      }
+      const tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: GCAL_CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/calendar.readonly',
+        callback: (resp) => {
+          if (resp.error) return;
+          gcalToken = resp.access_token;
+          sessionStorage.setItem('gcal_token', gcalToken);
+          updateConnectBtn();
+          gcalEvents = {};
+          fetchEventsForMonth();
+        }
+      });
+      tokenClient.requestAccessToken();
+    });
+
+    document.getElementById('gcalPrev').addEventListener('click', () => {
+      gcalDate.setMonth(gcalDate.getMonth() - 1);
+      gcalEvents = {};
+      renderGcalGrid();
+      if (gcalToken) fetchEventsForMonth();
+    });
+
+    document.getElementById('gcalNext').addEventListener('click', () => {
+      gcalDate.setMonth(gcalDate.getMonth() + 1);
+      gcalEvents = {};
+      renderGcalGrid();
+      if (gcalToken) fetchEventsForMonth();
+    });
+
+    // Init
+    updateConnectBtn();
+    renderGcalGrid();
+    if (gcalToken) fetchEventsForMonth();
+
+    // Auto-select today and show panel
+    const todayKey = dateKey(new Date());
+    gcalSelected = todayKey;
+    renderGcalGrid();
+    renderDayPanel(todayKey);
+  })();
 
   /* ── Login gate + Google Authenticator 2FA ── */
   (function() {
