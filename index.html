@@ -187,7 +187,8 @@
       padding: 5px 8px; transition: border-color 0.2s, color 0.2s; text-align: center;
     }
     .gcal-connect-btn:hover { border-color: #00c4a0; color: #00c4a0; }
-    .gcal-connect-btn.connected { border-color: var(--done); color: var(--done); cursor: default; }
+    .gcal-connect-btn.connected { border-color: var(--done); color: var(--done); }
+    .gcal-connect-btn.connected:hover { border-color: var(--danger); color: var(--danger); }
     .gcal-weekdays {
       display: grid; grid-template-columns: repeat(7, 1fr);
       margin-bottom: 4px;
@@ -2824,7 +2825,7 @@
     function updateConnectBtn() {
       const btn = document.getElementById('gcalConnectBtn');
       if (gcalToken) {
-        btn.textContent = '✓ Google Calendar Connected';
+        btn.textContent = '✓ Connected — Disconnect';
         btn.classList.add('connected');
       } else {
         btn.textContent = '📅 Connect Google Calendar';
@@ -2833,7 +2834,15 @@
     }
 
     document.getElementById('gcalConnectBtn').addEventListener('click', () => {
-      if (gcalToken) return;
+      if (gcalToken) {
+        gcalToken = null;
+        sessionStorage.removeItem('gcal_token');
+        gcalEvents = {};
+        updateConnectBtn();
+        renderGcalGrid();
+        if (gcalSelected) renderDayPanel(gcalSelected);
+        return;
+      }
       if (GCAL_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID') {
         alert('Paste your Google Client ID into the GCAL_CLIENT_ID variable in the code first.');
         return;
