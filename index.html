@@ -5,11 +5,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Todo</title>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/otpauth@9/dist/otpauth.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1/build/qrcode.min.js"></script>
   <style>
     html { font-size: 125%; }
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    /* ── Login screen ── */
+    /* ── Login / 2FA screen ── */
     #loginScreen {
       position: fixed; inset: 0; z-index: 9999;
       background: #0f0f13;
@@ -20,27 +22,20 @@
       background: #1a1a24;
       border: 1.5px solid #2e2e40;
       border-radius: 20px;
-      padding: 48px 44px 40px;
-      width: 100%; max-width: 400px;
-      display: flex; flex-direction: column; align-items: center; gap: 0;
+      padding: 44px 44px 36px;
+      width: 100%; max-width: 420px;
+      display: flex; flex-direction: column; align-items: center;
     }
-    .login-logo {
-      font-size: 2.8rem; margin-bottom: 8px;
-    }
+    .login-logo { font-size: 2.6rem; margin-bottom: 8px; }
     .login-title {
-      font-size: 1.5rem; font-weight: 700; color: #e8e8f0;
-      margin-bottom: 4px; letter-spacing: -0.3px;
+      font-size: 1.4rem; font-weight: 700; color: #e8e8f0;
+      margin-bottom: 4px; letter-spacing: -0.3px; text-align: center;
     }
-    .login-sub {
-      font-size: 0.78rem; color: #888899; margin-bottom: 36px;
-    }
-    .login-field {
-      width: 100%; margin-bottom: 14px;
-    }
+    .login-sub { font-size: 0.78rem; color: #888899; margin-bottom: 28px; text-align: center; }
+    .login-field { width: 100%; margin-bottom: 13px; }
     .login-field label {
-      display: block; font-size: 0.72rem; font-weight: 600;
-      color: #888899; text-transform: uppercase; letter-spacing: 0.06em;
-      margin-bottom: 6px;
+      display: block; font-size: 0.7rem; font-weight: 600;
+      color: #888899; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;
     }
     .login-field input {
       width: 100%; background: #22222f; border: 1.5px solid #2e2e40;
@@ -48,10 +43,19 @@
       padding: 12px 14px; outline: none;
       transition: border-color 0.2s, box-shadow 0.2s;
     }
-    .login-field input:focus {
-      border-color: #00c4a0;
-      box-shadow: 0 0 0 3px rgba(0,196,160,0.15);
+    .login-field input:focus { border-color: #00c4a0; box-shadow: 0 0 0 3px rgba(0,196,160,0.15); }
+    .totp-input-wrap { width: 100%; margin-bottom: 13px; }
+    .totp-input-wrap label {
+      display: block; font-size: 0.7rem; font-weight: 600;
+      color: #888899; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;
     }
+    .totp-input-wrap input {
+      width: 100%; background: #22222f; border: 1.5px solid #2e2e40;
+      border-radius: 10px; color: #e8e8f0; font-size: 1.6rem; font-weight: 700;
+      letter-spacing: 0.25em; text-align: center; padding: 12px 14px; outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .totp-input-wrap input:focus { border-color: #00c4a0; box-shadow: 0 0 0 3px rgba(0,196,160,0.15); }
     .login-btn {
       width: 100%; margin-top: 8px;
       background: #00c4a0; border: none; border-radius: 10px;
@@ -59,10 +63,21 @@
       padding: 13px; transition: opacity 0.15s;
     }
     .login-btn:hover { opacity: 0.88; }
-    .login-error {
-      margin-top: 14px; font-size: 0.78rem; color: #ff5f6d;
-      min-height: 1.2em; text-align: center;
+    .login-error { margin-top: 12px; font-size: 0.78rem; color: #ff5f6d; min-height: 1.2em; text-align: center; }
+    /* Setup screen */
+    .setup-view, .login-view { width: 100%; display: flex; flex-direction: column; align-items: center; }
+    .setup-view.hidden, .login-view.hidden { display: none; }
+    #qrCanvas { border-radius: 12px; margin: 16px 0 12px; background: #fff; padding: 10px; }
+    .setup-secret {
+      font-size: 0.75rem; color: #888899; background: #22222f;
+      border-radius: 8px; padding: 8px 14px; letter-spacing: 0.12em;
+      margin-bottom: 18px; word-break: break-all; text-align: center;
     }
+    .setup-steps {
+      font-size: 0.78rem; color: #888899; margin-bottom: 20px;
+      line-height: 1.7; text-align: left; width: 100%;
+    }
+    .setup-steps span { color: #e8e8f0; font-weight: 600; }
 
     :root {
       --bg: #0f0f13;
@@ -872,22 +887,51 @@
 </head>
 <body>
 
-<!-- ── Login screen ── -->
+<!-- ── Login / 2FA screen ── -->
 <div id="loginScreen">
   <div class="login-card">
-    <div class="login-logo">✅</div>
-    <div class="login-title">Welcome back, Rocky</div>
-    <div class="login-sub">Sign in to your dashboard</div>
-    <div class="login-field">
-      <label>Username</label>
-      <input type="text" id="loginUser" placeholder="Username" autocomplete="username" />
+
+    <!-- First-time 2FA setup -->
+    <div class="setup-view" id="setupView">
+      <div class="login-logo">🔐</div>
+      <div class="login-title">Set up 2FA</div>
+      <div class="login-sub">One-time setup — scan with Google Authenticator</div>
+      <div class="setup-steps">
+        <span>1.</span> Open <span>Google Authenticator</span> on your phone<br>
+        <span>2.</span> Tap <span>+</span> → <span>Scan a QR code</span><br>
+        <span>3.</span> Scan the code below, then enter the 6-digit code to confirm
+      </div>
+      <canvas id="qrCanvas"></canvas>
+      <div class="setup-secret" id="setupSecretLabel"></div>
+      <div class="totp-input-wrap">
+        <label>Enter 6-digit code to confirm</label>
+        <input type="text" id="setupCode" maxlength="6" placeholder="000000" inputmode="numeric" autocomplete="one-time-code" />
+      </div>
+      <button class="login-btn" id="setupBtn">Verify &amp; Continue</button>
+      <div class="login-error" id="setupError"></div>
     </div>
-    <div class="login-field">
-      <label>Password</label>
-      <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password" />
+
+    <!-- Normal login -->
+    <div class="login-view hidden" id="loginView">
+      <div class="login-logo">✅</div>
+      <div class="login-title">Welcome back, Rocky</div>
+      <div class="login-sub">Sign in to your dashboard</div>
+      <div class="login-field">
+        <label>Username</label>
+        <input type="text" id="loginUser" placeholder="Username" autocomplete="username" />
+      </div>
+      <div class="login-field">
+        <label>Password</label>
+        <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password" />
+      </div>
+      <div class="totp-input-wrap">
+        <label>Authenticator code</label>
+        <input type="text" id="loginTotp" maxlength="6" placeholder="000000" inputmode="numeric" autocomplete="one-time-code" />
+      </div>
+      <button class="login-btn" id="loginBtn">Sign In</button>
+      <div class="login-error" id="loginError"></div>
     </div>
-    <button class="login-btn" id="loginBtn">Sign In</button>
-    <div class="login-error" id="loginError"></div>
+
   </div>
 </div>
 
@@ -2317,36 +2361,92 @@
   // Initial habits render
   renderHabits();
 
-  /* ── Login gate ── */
+  /* ── Login gate + Google Authenticator 2FA ── */
   (function() {
-    const screen = document.getElementById('loginScreen');
-    const SESSION_KEY = 'todo_auth';
+    const TOTP_SECRET   = 'RNMGTODO2FARPKX3';
+    const SESSION_KEY   = 'todo_auth';
+    const SETUP_KEY     = 'todo_2fa_setup';
 
-    function isAuthed() { return sessionStorage.getItem(SESSION_KEY) === '1'; }
+    const screen      = document.getElementById('loginScreen');
+    const setupView   = document.getElementById('setupView');
+    const loginView   = document.getElementById('loginView');
 
-    if (isAuthed()) {
-      screen.classList.add('hidden');
+    const totp = new OTPAuth.TOTP({
+      secret:    OTPAuth.Secret.fromBase32(TOTP_SECRET),
+      algorithm: 'SHA1',
+      digits:    6,
+      period:    30
+    });
+
+    function verifyCode(code) {
+      return totp.validate({ token: code.trim(), window: 1 }) !== null;
     }
 
-    document.getElementById('loginBtn').addEventListener('click', attempt);
+    function showError(id, msg) {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      setTimeout(() => { el.textContent = ''; }, 3000);
+    }
+
+    // Already logged in this session
+    if (sessionStorage.getItem(SESSION_KEY) === '1') {
+      screen.classList.add('hidden');
+      return;
+    }
+
+    // First-time setup vs normal login
+    if (localStorage.getItem(SETUP_KEY) === '1') {
+      setupView.classList.add('hidden');
+      loginView.classList.remove('hidden');
+    } else {
+      // Generate QR code
+      const uri = totp.toString(); // otpauth://totp/...
+      const label = `TOTP App:Rocky?secret=${TOTP_SECRET}&issuer=TodoApp`;
+      const otpauthUri = `otpauth://totp/${encodeURIComponent('TodoApp:Rocky')}?secret=${TOTP_SECRET}&issuer=TodoApp&algorithm=SHA1&digits=6&period=30`;
+      QRCode.toCanvas(document.getElementById('qrCanvas'), otpauthUri, { width: 180, color: { dark: '#000', light: '#fff' } });
+      document.getElementById('setupSecretLabel').textContent = 'Manual key: ' + TOTP_SECRET;
+    }
+
+    // Setup flow
+    document.getElementById('setupBtn').addEventListener('click', () => {
+      const code = document.getElementById('setupCode').value.trim();
+      if (verifyCode(code)) {
+        localStorage.setItem(SETUP_KEY, '1');
+        setupView.classList.add('hidden');
+        loginView.classList.remove('hidden');
+        setTimeout(() => document.getElementById('loginUser').focus(), 50);
+      } else {
+        document.getElementById('setupCode').value = '';
+        showError('setupError', 'Incorrect code — try again.');
+      }
+    });
+    document.getElementById('setupCode').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('setupBtn').click();
+    });
+
+    // Login flow
+    document.getElementById('loginBtn').addEventListener('click', attemptLogin);
+    document.getElementById('loginTotp').addEventListener('keydown', e => {
+      if (e.key === 'Enter') attemptLogin();
+    });
     document.getElementById('loginPass').addEventListener('keydown', e => {
-      if (e.key === 'Enter') attempt();
+      if (e.key === 'Enter') document.getElementById('loginTotp').focus();
     });
     document.getElementById('loginUser').addEventListener('keydown', e => {
       if (e.key === 'Enter') document.getElementById('loginPass').focus();
     });
 
-    function attempt() {
+    function attemptLogin() {
       const user = document.getElementById('loginUser').value.trim();
       const pass = document.getElementById('loginPass').value;
-      if (user === 'Rocky' && pass === 'Rakesh20') {
+      const code = document.getElementById('loginTotp').value.trim();
+      if (user === 'Rocky' && pass === 'Rakesh20' && verifyCode(code)) {
         sessionStorage.setItem(SESSION_KEY, '1');
         screen.classList.add('hidden');
       } else {
-        const err = document.getElementById('loginError');
-        err.textContent = 'Incorrect username or password.';
+        document.getElementById('loginTotp').value = '';
         document.getElementById('loginPass').value = '';
-        setTimeout(() => { err.textContent = ''; }, 3000);
+        showError('loginError', 'Incorrect credentials or code.');
       }
     }
   })();
