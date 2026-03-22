@@ -2712,7 +2712,7 @@
         ...(JSON.parse(localStorage.getItem('todos_work') || '[]')),
         ...(JSON.parse(localStorage.getItem('todos_personal') || '[]'))
       ];
-      return allTodos.filter(t => t.due && t.due.startsWith(key));
+      return allTodos.filter(t => t.due && dateKey(new Date(t.due)) === key);
     }
 
     function formatTime(iso) {
