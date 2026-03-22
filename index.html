@@ -244,6 +244,64 @@
     }
     .gcal-section-label:first-child { margin-top: 0; }
 
+    /* ── Mobile nav (hidden on desktop) ── */
+    .mobile-header { display: none; }
+    .mobile-drawer-overlay { display: none; }
+    .mobile-drawer { display: none; }
+
+    @media (max-width: 768px) {
+      body { padding: 0 0 24px; align-items: stretch; }
+
+      .mobile-header {
+        display: flex; position: fixed; top: 0; left: 0; right: 0;
+        height: 54px; background: var(--surface); border-bottom: 1.5px solid var(--border);
+        align-items: center; padding: 0 16px; gap: 14px; z-index: 500;
+      }
+      .hamburger-btn {
+        background: none; border: none; color: var(--text);
+        font-size: 1.4rem; cursor: pointer; padding: 4px; line-height: 1;
+      }
+      .mobile-title { font-size: 1rem; font-weight: 700; color: var(--text); }
+
+      .mobile-drawer-overlay {
+        position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 600;
+      }
+      .mobile-drawer-overlay.visible { display: block; }
+
+      .mobile-drawer {
+        display: block; position: fixed; top: 0; left: 0; bottom: 0; width: 260px;
+        background: var(--surface); border-right: 1.5px solid var(--border);
+        z-index: 700; transform: translateX(-100%); transition: transform 0.25s ease;
+        padding-top: 0;
+      }
+      .mobile-drawer.open { transform: translateX(0); }
+
+      .drawer-header {
+        height: 54px; display: flex; align-items: center; padding: 0 20px;
+        font-size: 1rem; font-weight: 700; color: var(--text);
+        border-bottom: 1.5px solid var(--border); margin-bottom: 8px;
+      }
+      .drawer-item {
+        display: flex; align-items: center; gap: 14px;
+        padding: 15px 20px; font-size: 0.92rem; font-weight: 600;
+        color: var(--text-dim); cursor: pointer; transition: background 0.15s, color 0.15s;
+      }
+      .drawer-item:hover, .drawer-item.active { background: var(--surface2); color: var(--text); }
+      .drawer-item.active { border-left: 3px solid var(--accent); padding-left: 17px; }
+      .drawer-icon { font-size: 1.15rem; }
+
+      .main-layout {
+        display: block; padding: 66px 12px 16px; max-width: 100%;
+      }
+      .gcal-sidebar, .app, .habits-sidebar {
+        display: none; width: 100%; min-width: 0; flex: none;
+      }
+      .gcal-sidebar.mobile-active, .app.mobile-active, .habits-sidebar.mobile-active {
+        display: block;
+      }
+      .habits-sidebar { padding-top: 0; }
+    }
+
     /* ── Tab switcher ── */
     .tab-switcher {
       display: flex;
@@ -1046,6 +1104,27 @@
   <div class="cal-footer">
     <button class="cal-btn" id="calClear">Clear</button>
     <button class="cal-btn cal-btn-set" id="calSet">Set</button>
+  </div>
+</div>
+
+<!-- ── Mobile header (hidden on desktop) ── -->
+<div class="mobile-header">
+  <button class="hamburger-btn" id="hamburgerBtn">&#9776;</button>
+  <span class="mobile-title" id="mobileTitle">Reminders</span>
+</div>
+
+<!-- ── Mobile drawer ── -->
+<div class="mobile-drawer-overlay" id="drawerOverlay"></div>
+<div class="mobile-drawer" id="mobileDrawer">
+  <div class="drawer-header">&#9776;&nbsp; Menu</div>
+  <div class="drawer-item active" data-mobile-tab="reminders">
+    <span class="drawer-icon">📋</span> Reminders
+  </div>
+  <div class="drawer-item" data-mobile-tab="calendar">
+    <span class="drawer-icon">📅</span> Calendar
+  </div>
+  <div class="drawer-item" data-mobile-tab="habits">
+    <span class="drawer-icon">🔥</span> Habits
   </div>
 </div>
 
@@ -2706,6 +2785,63 @@
     gcalSelected = todayKey;
     renderGcalGrid();
     renderDayPanel(todayKey);
+  })();
+
+  /* ── Mobile navigation ── */
+  (function() {
+    const TABS = {
+      reminders: { label: 'Reminders', el: () => document.querySelector('.app') },
+      calendar:  { label: 'Calendar',  el: () => document.querySelector('.gcal-sidebar') },
+      habits:    { label: 'Habits',    el: () => document.querySelector('.habits-sidebar') },
+    };
+    let currentTab = 'reminders';
+
+    function isMobile() { return window.innerWidth <= 768; }
+
+    function applyMobileTab(tab) {
+      Object.keys(TABS).forEach(key => {
+        const el = TABS[key].el();
+        if (el) el.classList.toggle('mobile-active', key === tab);
+      });
+      document.getElementById('mobileTitle').textContent = TABS[tab].label;
+      document.querySelectorAll('.drawer-item').forEach(item => {
+        item.classList.toggle('active', item.dataset.mobileTab === tab);
+      });
+      closeDrawer();
+    }
+
+    function syncLayout() {
+      if (isMobile()) {
+        applyMobileTab(currentTab);
+      } else {
+        // Restore desktop — remove all mobile-active classes
+        Object.values(TABS).forEach(t => {
+          const el = t.el();
+          if (el) el.classList.remove('mobile-active');
+        });
+      }
+    }
+
+    function openDrawer() {
+      document.getElementById('mobileDrawer').classList.add('open');
+      document.getElementById('drawerOverlay').classList.add('visible');
+    }
+    function closeDrawer() {
+      document.getElementById('mobileDrawer').classList.remove('open');
+      document.getElementById('drawerOverlay').classList.remove('visible');
+    }
+
+    document.getElementById('hamburgerBtn').addEventListener('click', openDrawer);
+    document.getElementById('drawerOverlay').addEventListener('click', closeDrawer);
+    document.querySelectorAll('.drawer-item').forEach(item => {
+      item.addEventListener('click', () => {
+        currentTab = item.dataset.mobileTab;
+        applyMobileTab(currentTab);
+      });
+    });
+
+    window.addEventListener('resize', syncLayout);
+    syncLayout();
   })();
 
   /* ── Login gate + Google Authenticator 2FA ── */
