@@ -1048,7 +1048,19 @@
     .hydration-dot-legend { font-size: 0.65rem; color: var(--text-dim); margin-top: 2px; }
     .hydration-history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
     .hydration-view-all { font-size: 0.72rem; color: #3d9fd4; background: none; border: none; cursor: pointer; padding: 0; }
-    .hydration-history-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .hydration-history-row { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; cursor: pointer; border-radius: 8px; padding: 4px 6px; transition: background 0.15s; }
+    .hydration-history-row:hover { background: var(--surface2); }
+    .hydration-history-edit { display: none; background: var(--surface2); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; }
+    .hydration-history-edit.visible { display: block; }
+    .hydration-history-edit-label { font-size: 0.68rem; color: var(--text-dim); margin-bottom: 6px; }
+    .hydration-history-edit-btns { display: flex; gap: 5px; flex-wrap: wrap; align-items: center; }
+    .hydration-hist-quick { font-size: 0.72rem; padding: 3px 8px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); cursor: pointer; transition: background 0.15s; }
+    .hydration-hist-quick:hover { background: #3d9fd4; border-color: #3d9fd4; color: #fff; }
+    .hydration-hist-custom-wrap { display: flex; gap: 4px; align-items: center; margin-top: 5px; }
+    .hydration-hist-custom-input { width: 64px; background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--text); font-size: 0.72rem; padding: 3px 6px; }
+    .hydration-hist-custom-confirm { font-size: 0.72rem; padding: 3px 8px; background: #3d9fd4; border: none; border-radius: 6px; color: #fff; cursor: pointer; }
+    .hydration-hist-clear { font-size: 0.68rem; padding: 3px 7px; background: transparent; border: 1px solid var(--danger); border-radius: 6px; color: var(--danger); cursor: pointer; margin-left: auto; }
+    .hydration-hist-clear:hover { background: var(--danger); color: #fff; }
     .hydration-history-date { font-size: 0.7rem; color: var(--text-dim); width: 76px; flex-shrink: 0; }
     .hydration-history-track { flex: 1; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
     .hydration-history-fill { height: 100%; background: #3d9fd4; border-radius: 3px; }
@@ -1480,9 +1492,9 @@
       <div class="hydration-fill-label" id="hydrationFillLabel"></div>
       <div class="hydration-quick-btns">
         <button class="hydration-quick-btn" data-oz="8">+8 oz</button>
-        <button class="hydration-quick-btn" data-oz="12">+12 oz</button>
         <button class="hydration-quick-btn" data-oz="16">+16 oz</button>
-        <button class="hydration-quick-btn" data-oz="20">+20 oz</button>
+        <button class="hydration-quick-btn" data-oz="32">+32 oz</button>
+        <button class="hydration-quick-btn" data-oz="64">+64 oz</button>
         <button class="hydration-quick-btn hydration-custom-trigger" id="hydrationCustomBtn">custom</button>
       </div>
       <div class="hydration-custom-row" id="hydrationCustomRow">
@@ -3605,12 +3617,31 @@
     let hyd = loadHyd();
     let historyExpanded = false;
 
-    function todayKey() { return new Date().toISOString().slice(0, 10); }
+    function localKey(d) {
+      return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    }
+    function todayKey() { return localKey(new Date()); }
     function getTodayOz() { return hyd.logs[todayKey()] || 0; }
 
     function logWater(oz) {
       const t = todayKey();
       hyd.logs[t] = (hyd.logs[t] || 0) + oz;
+      const streak = calcStreak();
+      if (streak > (hyd.bestStreak || 0)) hyd.bestStreak = streak;
+      saveHyd();
+      renderHydration();
+    }
+
+    function logWaterForDate(oz, ds) {
+      hyd.logs[ds] = (hyd.logs[ds] || 0) + oz;
+      const streak = calcStreak();
+      if (streak > (hyd.bestStreak || 0)) hyd.bestStreak = streak;
+      saveHyd();
+      renderHydration();
+    }
+
+    function clearWaterForDate(ds) {
+      delete hyd.logs[ds];
       const streak = calcStreak();
       if (streak > (hyd.bestStreak || 0)) hyd.bestStreak = streak;
       saveHyd();
@@ -3624,7 +3655,7 @@
       // If today not yet met, start counting from yesterday
       if ((hyd.logs[todayKey()] || 0) < goal) d.setDate(d.getDate() - 1);
       for (let i = 0; i < 365; i++) {
-        const ds = d.toISOString().slice(0, 10);
+        const ds = localKey(d);
         if ((hyd.logs[ds] || 0) >= goal) { streak++; d.setDate(d.getDate() - 1); }
         else break;
       }
@@ -3657,7 +3688,7 @@
       const today = todayKey();
       const days = Array.from({ length: 7 }, (_, i) => {
         const d = new Date(); d.setDate(d.getDate() - (6 - i));
-        return d.toISOString().slice(0, 10);
+        return localKey(d);
       });
       document.getElementById('hydrationDots').innerHTML = days.map(ds => {
         const oz = hyd.logs[ds] || 0;
@@ -3680,25 +3711,91 @@
       renderHistory(historyExpanded ? 30 : 5);
     }
 
+    let expandedHistoryDate = null;
+
     function renderHistory(days) {
       const goal = hyd.goal || 64;
       const fmtDate = ds => new Date(ds + 'T12:00:00')
         .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
       const rows = Array.from({ length: days }, (_, i) => {
         const d = new Date(); d.setDate(d.getDate() - (i + 1));
-        return d.toISOString().slice(0, 10);
+        return localKey(d);
       });
-      document.getElementById('hydrationHistory').innerHTML = rows.map(ds => {
+      const container = document.getElementById('hydrationHistory');
+      container.innerHTML = rows.map(ds => {
         const oz  = hyd.logs[ds] || 0;
         const pct = Math.min(100, Math.round((oz / goal) * 100));
         const met = oz >= goal;
-        return `<div class="hydration-history-row">
+        const isOpen = expandedHistoryDate === ds;
+        return `<div class="hydration-history-row" data-ds="${ds}">
           <div class="hydration-history-date">${fmtDate(ds)}</div>
           <div class="hydration-history-track"><div class="hydration-history-fill" style="width:${pct}%"></div></div>
           <div class="hydration-history-oz">${oz} oz</div>
           <div class="hydration-history-icon${met ? '' : ' miss'}">${met ? '&#10003;' : '&#10007;'}</div>
+        </div>
+        <div class="hydration-history-edit${isOpen ? ' visible' : ''}" data-edit-ds="${ds}">
+          <div class="hydration-history-edit-label">Add intake for ${fmtDate(ds)} &nbsp;(current: ${oz} oz)</div>
+          <div class="hydration-history-edit-btns">
+            ${[8,16,32,64].map(q => `<button class="hydration-hist-quick" data-q="${q}" data-ds="${ds}">+${q} oz</button>`).join('')}
+          </div>
+          <div class="hydration-hist-custom-wrap">
+            <input class="hydration-hist-custom-input" type="number" min="1" max="256" placeholder="oz" data-custom-ds="${ds}">
+            <button class="hydration-hist-custom-confirm" data-confirm-ds="${ds}">Add</button>
+            <button class="hydration-hist-clear" data-clear-ds="${ds}">Clear</button>
+          </div>
         </div>`;
       }).join('');
+
+      // Row click — toggle expand
+      container.querySelectorAll('.hydration-history-row').forEach(row => {
+        row.addEventListener('click', () => {
+          const ds = row.dataset.ds;
+          expandedHistoryDate = expandedHistoryDate === ds ? null : ds;
+          renderHistory(historyExpanded ? 30 : 5);
+        });
+      });
+
+      // Quick add buttons
+      container.querySelectorAll('.hydration-hist-quick').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          logWaterForDate(parseInt(btn.dataset.q), btn.dataset.ds);
+          expandedHistoryDate = null;
+        });
+      });
+
+      // Custom add confirm
+      container.querySelectorAll('.hydration-hist-custom-confirm').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          const ds = btn.dataset.confirmDs;
+          const input = container.querySelector(`.hydration-hist-custom-input[data-custom-ds="${ds}"]`);
+          const oz = parseInt(input.value);
+          if (oz > 0) { logWaterForDate(oz, ds); expandedHistoryDate = null; }
+        });
+      });
+
+      // Custom input enter key
+      container.querySelectorAll('.hydration-hist-custom-input').forEach(input => {
+        input.addEventListener('keydown', e => {
+          if (e.key === 'Enter') {
+            e.stopPropagation();
+            const ds = input.dataset.customDs;
+            const oz = parseInt(input.value);
+            if (oz > 0) { logWaterForDate(oz, ds); expandedHistoryDate = null; }
+          }
+        });
+        input.addEventListener('click', e => e.stopPropagation());
+      });
+
+      // Clear button
+      container.querySelectorAll('.hydration-hist-clear').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
+          clearWaterForDate(btn.dataset.clearDs);
+          expandedHistoryDate = null;
+        });
+      });
     }
 
     // Quick log
