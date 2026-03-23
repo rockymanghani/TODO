@@ -730,6 +730,19 @@
       font-size: 0.71rem; color: var(--text-dim); margin-top: 4px; line-height: 1.5;
     }
     .form-hint a { color: var(--accent); text-decoration: none; }
+    .habit-days-picker {
+      display: flex; gap: 6px; margin-top: 10px;
+    }
+    .habit-days-picker.hidden { display: none; }
+    .habit-day-btn {
+      flex: 1; aspect-ratio: 1; background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: 8px; color: var(--text-dim); font-size: 0.75rem; font-weight: 700;
+      cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .habit-day-btn.active {
+      background: var(--accent); border-color: var(--accent); color: #fff;
+    }
+    .habit-day-btn:hover:not(.active) { border-color: var(--accent); color: var(--text); }
     .form-hint a:hover { text-decoration: underline; }
 
     /* Toggle switch */
@@ -1279,7 +1292,17 @@
         <option value="daily">Daily</option>
         <option value="weekly">Weekly</option>
         <option value="monthly">Monthly</option>
+        <option value="custom">Custom</option>
       </select>
+      <div class="habit-days-picker hidden" id="habitDaysPicker">
+        <button type="button" class="habit-day-btn" data-day="1">M</button>
+        <button type="button" class="habit-day-btn" data-day="2">T</button>
+        <button type="button" class="habit-day-btn" data-day="3">W</button>
+        <button type="button" class="habit-day-btn" data-day="4">T</button>
+        <button type="button" class="habit-day-btn" data-day="5">F</button>
+        <button type="button" class="habit-day-btn" data-day="6">S</button>
+        <button type="button" class="habit-day-btn" data-day="0">S</button>
+      </div>
     </div>
 
     <hr class="modal-divider" />
@@ -1384,7 +1407,7 @@
 <script>
   /* ── Global config ── */
   const GCAL_CLIENT_ID = '602456987520-qnkupsi70susb139s03b3hpennauq2j1.apps.googleusercontent.com';
-  const ALLOWED_EMAILS = ['rocky.manghani@gmail.com']; // add emails here to invite others
+  const ALLOWED_EMAILS = ['']; // add your email here
 
   /* ── Storage ── */
   const KEYS = { work: 'todos_work', personal: 'todos_personal' };
@@ -2278,7 +2301,32 @@
       return streak;
     }
 
+    if (recur === 'custom') {
+      const scheduledDays = new Set(habit.customDays || []);
+      if (scheduledDays.size === 0) return 0;
+      const todayStr = today();
+      let streak = 0;
+      let d = new Date();
+      for (let i = 0; i < 400; i++) {
+        const ds = dateStr(d);
+        if (scheduledDays.has(d.getDay())) {
+          if (set.has(ds)) {
+            streak++;
+          } else if (ds !== todayStr) {
+            break; // missed a scheduled day
+          }
+        }
+        d = addDays(d, -1);
+      }
+      return streak;
+    }
+
     return 0;
+  }
+
+  function isDueToday(h) {
+    if (h.recur !== 'custom') return true;
+    return (h.customDays || []).includes(new Date().getDay());
   }
 
   function bestStreak(habit) {
@@ -2300,9 +2348,10 @@
   function renderHabits() {
     const listEl = document.getElementById('habitList');
     const countEl = document.getElementById('habitCount');
-    const doneToday = habits.filter(h => completedToday(h)).length;
-    countEl.innerHTML = `<span>${doneToday}</span> / <span>${habits.length}</span> done today`;
-    document.getElementById('badge-habits').textContent = habits.filter(h => !completedToday(h)).length;
+    const dueHabits = habits.filter(isDueToday);
+    const doneToday = dueHabits.filter(completedToday).length;
+    countEl.innerHTML = `<span>${doneToday}</span> / <span>${dueHabits.length}</span> done today`;
+    document.getElementById('badge-habits').textContent = dueHabits.filter(h => !completedToday(h)).length;
 
     if (habits.length === 0) {
       listEl.innerHTML = '<div class="habit-empty">No habits yet. Hit <strong>+ New Habit</strong> to start.</div>';
@@ -2343,7 +2392,10 @@
     const dotsHtml = getDotsHtml();
 
     const fireEmoji = streak >= 3 ? ' <span class="streak-fire">&#128293;</span>' : '';
-    const recurLabel = { daily:'Daily', weekly:'Weekly', monthly:'Monthly' }[habit.recur] || 'Daily';
+    const DAY_ABBR2 = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+    const recurLabel = habit.recur === 'custom'
+      ? ((habit.customDays || []).slice().sort((a,b)=>a-b).map(d => DAY_ABBR2[d]).join(' ') || 'Custom')
+      : ({ daily:'Daily', weekly:'Weekly', monthly:'Monthly' }[habit.recur] || 'Daily');
 
     card.innerHTML = `
       <div class="habit-card-top">
@@ -2459,11 +2511,12 @@
     }).join('');
 
     // Update global counts
-    const doneToday = habits.filter(hb => completedToday(hb)).length;
+    const dueHabits = habits.filter(isDueToday);
+    const doneToday = dueHabits.filter(completedToday).length;
     document.getElementById('habitCount').innerHTML =
-      `<span>${doneToday}</span> / <span>${habits.length}</span> done today`;
+      `<span>${doneToday}</span> / <span>${dueHabits.length}</span> done today`;
     document.getElementById('badge-habits').textContent =
-      habits.filter(hb => !completedToday(hb)).length;
+      dueHabits.filter(hb => !completedToday(hb)).length;
   }
 
   function deleteHabit(id) {
@@ -2521,7 +2574,19 @@
     const h = id ? habits.find(h => h.id === id) : null;
     document.getElementById('habitModalTitle').textContent = h ? 'Edit Habit' : 'New Habit';
     document.getElementById('habitName').value         = h?.name          || '';
-    document.getElementById('habitRecur').value        = h?.recur         || 'daily';
+    const recur = h?.recur || 'daily';
+    document.getElementById('habitRecur').value        = recur;
+    const picker = document.getElementById('habitDaysPicker');
+    if (recur === 'custom') {
+      picker.classList.remove('hidden');
+      const days = new Set(h?.customDays || []);
+      picker.querySelectorAll('.habit-day-btn').forEach(btn => {
+        btn.classList.toggle('active', days.has(Number(btn.dataset.day)));
+      });
+    } else {
+      picker.classList.add('hidden');
+      picker.querySelectorAll('.habit-day-btn').forEach(btn => btn.classList.remove('active'));
+    }
     document.getElementById('habitNotifTarget').value  = h?.notifTarget   || '';
     document.getElementById('habitReminderTime').value = h?.reminderTime  || '08:00';
     document.getElementById('habitModalStatus').className = 'notif-status';
@@ -2535,6 +2600,20 @@
     document.getElementById('habitModal').classList.remove('open');
     editingHabitId = null;
   }
+
+  document.getElementById('habitRecur').addEventListener('change', function() {
+    const picker = document.getElementById('habitDaysPicker');
+    if (this.value === 'custom') {
+      picker.classList.remove('hidden');
+    } else {
+      picker.classList.add('hidden');
+      picker.querySelectorAll('.habit-day-btn').forEach(btn => btn.classList.remove('active'));
+    }
+  });
+  document.getElementById('habitDaysPicker').addEventListener('click', e => {
+    const btn = e.target.closest('.habit-day-btn');
+    if (btn) btn.classList.toggle('active');
+  });
 
   document.getElementById('newHabitBtn').addEventListener('click', () => openHabitModal(null));
   document.getElementById('habitModalClose').addEventListener('click', closeHabitModal);
@@ -2552,10 +2631,15 @@
       return;
     }
     const customIcon = document.getElementById('habitIconCustom').value.trim();
+    const recur = document.getElementById('habitRecur').value;
+    const customDays = recur === 'custom'
+      ? [...document.querySelectorAll('#habitDaysPicker .habit-day-btn.active')].map(b => Number(b.dataset.day))
+      : [];
     const payload = {
       name,
       icon:         customIcon || selectedIcon || '⭐',
-      recur:        document.getElementById('habitRecur').value,
+      recur,
+      customDays,
       notifTarget:  document.getElementById('habitNotifTarget').value,
       reminderTime: document.getElementById('habitReminderTime').value,
     };
@@ -2584,6 +2668,7 @@
     habits.forEach(h => {
       if (!h.reminderTime || !h.notifTarget) return;
       if (completedToday(h)) return;
+      if (!isDueToday(h)) return;
       if (h.notifiedDate === nowDate) return; // already notified today
 
       // Fire if current time is within 1 minute of reminder time
