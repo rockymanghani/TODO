@@ -2152,7 +2152,7 @@
   function loadNotifSettings() {
     try { return JSON.parse(localStorage.getItem(NOTIF_KEY)) || {}; } catch { return {}; }
   }
-  function saveNotifSettings(s) { localStorage.setItem(NOTIF_KEY, JSON.stringify(s)); }
+  function saveNotifSettings(s) { localStorage.setItem(NOTIF_KEY, JSON.stringify(s)); if (window.scheduleDriveSave) window.scheduleDriveSave(); }
 
   let notif = loadNotifSettings();
 
@@ -3009,7 +3009,7 @@
     // Init
     updateConnectBtn();
     renderGcalGrid();
-    if (gcalToken) fetchEventsForMonth();
+    if (gcalToken) { fetchEventsForMonth(); driveInit(); }
 
     // Auto-select today and show panel
     const todayKey = dateKey(new Date());
@@ -3162,13 +3162,14 @@
       return;
     }
 
-    // First-time setup vs normal login
-    if (localStorage.getItem(SETUP_KEY) === '1') {
-      setupView.classList.add('hidden');
-      loginView.classList.remove('hidden');
-    } else {
-      // Generate QR code
-      const uri = totp.toString(); // otpauth://totp/...
+    // Always skip setup — secret is hardcoded, user already has it in their authenticator
+    localStorage.setItem(SETUP_KEY, '1');
+    setupView.classList.add('hidden');
+    loginView.classList.remove('hidden');
+
+    if (false) {
+      // (QR setup kept here for reference but never shown)
+      const uri = totp.toString();
       const otpauthUri = `otpauth://totp/${encodeURIComponent('TodoApp:Rocky')}?secret=${TOTP_SECRET}&issuer=TodoApp&algorithm=SHA1&digits=6&period=30`;
       new QRCode(document.getElementById('qrCanvas'), {
         text: otpauthUri,
