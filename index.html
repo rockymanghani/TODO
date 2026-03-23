@@ -2698,10 +2698,26 @@
 
     let gcalDate     = new Date();   // currently displayed month
     let gcalSelected = null;         // selected date string 'YYYY-MM-DD'
-    let gcalToken    = sessionStorage.getItem('gcal_token') || null;
     let gcalEvents   = {};           // cache: 'YYYY-MM-DD' -> array of events
     let driveFileId  = null;
     let driveSaveTimer = null;
+
+    // Token stored in localStorage with expiry (tokens last ~1 hour)
+    function storeGcalToken(token) {
+      localStorage.setItem('gcal_token', JSON.stringify({ token, expiry: Date.now() + 55 * 60 * 1000 }));
+    }
+    function clearGcalToken() {
+      localStorage.removeItem('gcal_token');
+    }
+    function loadGcalToken() {
+      try {
+        const s = JSON.parse(localStorage.getItem('gcal_token'));
+        if (s && s.expiry > Date.now()) return s.token;
+      } catch {}
+      clearGcalToken();
+      return null;
+    }
+    let gcalToken = loadGcalToken();
 
     function dateKey(d) {
       return d.getFullYear() + '-' +
@@ -2845,7 +2861,7 @@
           'https://www.googleapis.com/calendar/v3/users/me/calendarList',
           { headers: { Authorization: `Bearer ${gcalToken}` } }
         );
-        if (listRes.status === 401) { gcalToken = null; sessionStorage.removeItem('gcal_token'); updateConnectBtn(); return; }
+        if (listRes.status === 401) { gcalToken = null; clearGcalToken(); updateConnectBtn(); return; }
         const listData = await listRes.json();
         const calIds = (listData.items || []).map(c => c.id);
 
@@ -2965,7 +2981,7 @@
       if (gcalToken) {
         gcalToken = null;
         driveFileId = null;
-        sessionStorage.removeItem('gcal_token');
+        clearGcalToken();
         gcalEvents = {};
         updateConnectBtn();
         renderGcalGrid();
@@ -2982,7 +2998,7 @@
         callback: (resp) => {
           if (resp.error) return;
           gcalToken = resp.access_token;
-          sessionStorage.setItem('gcal_token', gcalToken);
+          storeGcalToken(gcalToken);
           updateConnectBtn();
           gcalEvents = {};
           fetchEventsForMonth();
@@ -3006,10 +3022,32 @@
       if (gcalToken) fetchEventsForMonth();
     });
 
+    // Silent auto-connect: if previously authorized, get a fresh token with no UI
+    function tryAutoConnect() {
+      if (gcalToken) { fetchEventsForMonth(); driveInit(); return; }
+      if (GCAL_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID') return;
+      try {
+        google.accounts.oauth2.initTokenClient({
+          client_id: GCAL_CLIENT_ID,
+          scope: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.file',
+          prompt: '',
+          callback: (resp) => {
+            if (resp.error || !resp.access_token) return;
+            gcalToken = resp.access_token;
+            storeGcalToken(gcalToken);
+            updateConnectBtn();
+            gcalEvents = {};
+            fetchEventsForMonth();
+            driveInit();
+          }
+        }).requestAccessToken({ prompt: '' });
+      } catch(e) {}
+    }
+
     // Init
     updateConnectBtn();
     renderGcalGrid();
-    if (gcalToken) { fetchEventsForMonth(); driveInit(); }
+    tryAutoConnect();
 
     // Auto-select today and show panel
     const todayKey = dateKey(new Date());
@@ -3060,7 +3098,7 @@
           if (gcalSelected) renderDayPanel(gcalSelected);
         } else if (res.status === 401 || res.status === 403) {
           gcalToken = null;
-          sessionStorage.removeItem('gcal_token');
+          clearGcalToken();
           updateConnectBtn();
         }
       } catch(e) { console.warn('GCal push failed', e); }
