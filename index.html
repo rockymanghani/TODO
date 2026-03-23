@@ -2931,13 +2931,14 @@
 
     async function driveInit() {
       if (!gcalToken) return;
+      setSyncStatus('☁ Syncing...');
       try {
         // Find existing file
         const res = await fetch(
           "https://www.googleapis.com/drive/v3/files?q=name%3D'todo-data.json'%20and%20trashed%3Dfalse&spaces=drive&fields=files(id)",
           { headers: { Authorization: `Bearer ${gcalToken}` } }
         );
-        if (!res.ok) return;
+        if (!res.ok) { setSyncStatus('☁ Sync error (' + res.status + ')'); return; }
         const list = await res.json();
 
         if (list.files && list.files.length > 0) {
@@ -2947,7 +2948,7 @@
             `https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,
             { headers: { Authorization: `Bearer ${gcalToken}` } }
           );
-          if (!dl.ok) return;
+          if (!dl.ok) { setSyncStatus('☁ Sync error (' + dl.status + ')'); return; }
           const cloud = await dl.json();
           if (cloud.todos_work)     localStorage.setItem('todos_work',     JSON.stringify(cloud.todos_work));
           if (cloud.todos_personal) localStorage.setItem('todos_personal', JSON.stringify(cloud.todos_personal));
@@ -2959,11 +2960,13 @@
           habits        = loadHabits();
           render();
           renderHabits();
+          setSyncStatus('☁ Synced ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
         } else {
           // First time: upload current local data to Drive
           await driveUpload();
+          setSyncStatus('☁ Synced (new file created)');
         }
-      } catch(e) { console.warn('Drive init failed', e); }
+      } catch(e) { setSyncStatus('☁ Sync failed'); console.warn('Drive init failed', e); }
     }
 
     function updateConnectBtn() {
@@ -3022,26 +3025,46 @@
       if (gcalToken) fetchEventsForMonth();
     });
 
-    // Silent auto-connect: if previously authorized, get a fresh token with no UI
-    function tryAutoConnect() {
+    // Sync status indicator
+    function setSyncStatus(msg) {
+      let el = document.getElementById('driveSyncStatus');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'driveSyncStatus';
+        el.style.cssText = 'font-size:0.7rem;color:#888;text-align:center;margin-top:4px;min-height:1em;';
+        const btn = document.getElementById('gcalConnectBtn');
+        btn.parentNode.insertBefore(el, btn.nextSibling);
+      }
+      el.textContent = msg;
+    }
+
+    // Silent auto-connect: retry until GIS library is ready
+    function tryAutoConnect(attempts) {
+      attempts = attempts || 0;
+      if (attempts > 20) return; // give up after ~4 seconds
+      if (typeof google === 'undefined' || !google.accounts) {
+        setTimeout(() => tryAutoConnect(attempts + 1), 200);
+        return;
+      }
       if (gcalToken) { fetchEventsForMonth(); driveInit(); return; }
       if (GCAL_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID') return;
-      try {
-        google.accounts.oauth2.initTokenClient({
-          client_id: GCAL_CLIENT_ID,
-          scope: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.file',
-          prompt: '',
-          callback: (resp) => {
-            if (resp.error || !resp.access_token) return;
-            gcalToken = resp.access_token;
-            storeGcalToken(gcalToken);
-            updateConnectBtn();
-            gcalEvents = {};
-            fetchEventsForMonth();
-            driveInit();
+      google.accounts.oauth2.initTokenClient({
+        client_id: GCAL_CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/drive.file',
+        prompt: '',
+        callback: (resp) => {
+          if (resp.error || !resp.access_token) {
+            setSyncStatus('☁ Connect Google to sync');
+            return;
           }
-        }).requestAccessToken({ prompt: '' });
-      } catch(e) {}
+          gcalToken = resp.access_token;
+          storeGcalToken(gcalToken);
+          updateConnectBtn();
+          gcalEvents = {};
+          fetchEventsForMonth();
+          driveInit();
+        }
+      }).requestAccessToken({ prompt: '' });
     }
 
     // Init
