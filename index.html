@@ -1427,6 +1427,7 @@
         <option value="">None</option>
         <option value="work">Work email</option>
         <option value="personal">Personal email</option>
+        <option value="both">Both</option>
       </select>
     </div>
     <div class="form-group" id="habitTimeGroup">
@@ -2563,7 +2564,7 @@
             <div class="habit-sub">
               <span class="habit-tag">${recurLabel}</span>
               ${habit.reminderTime ? `<span>&#128337; ${habit.reminderTime}</span>` : ''}
-              ${habit.notifTarget ? `<span>&#128276; ${habit.notifTarget === 'work' ? 'Work' : 'Personal'}</span>` : ''}
+              ${habit.notifTarget ? `<span>&#128276; ${{ work:'Work', personal:'Personal', both:'Both' }[habit.notifTarget] || ''}</span>` : ''}
             </div>
           </div>
         </div>
@@ -2888,19 +2889,24 @@
 
       // Fire if current time is within 1 minute of reminder time
       if (Math.abs(timeToMins(nowTime) - timeToMins(h.reminderTime)) <= 1) {
-        const email = h.notifTarget === 'work' ? notif.emailWork : notif.emailPersonal;
-        if (!email) return;
+        const emails = [];
+        if (h.notifTarget === 'work' || h.notifTarget === 'both') emails.push(notif.emailWork);
+        if (h.notifTarget === 'personal' || h.notifTarget === 'both') emails.push(notif.emailPersonal);
+        const validEmails = emails.filter(Boolean);
+        if (!validEmails.length) return;
         h.notifiedDate = nowDate;
         saveHabits();
         if (!notif.publicKey || !notif.serviceId || !notif.templateId) return;
         emailjs.init({ publicKey: notif.publicKey });
-        emailjs.send(notif.serviceId, notif.templateId, {
-          to_email:  email,
-          task_name: `Habit reminder: ${h.name}`,
-          due_time:  `Today at ${h.reminderTime}`,
-          tab:       h.recur === 'daily' ? 'Daily Habit' : 'Habit',
-          priority:  `${calcStreak(h)} day streak`,
-        }).catch(err => console.warn('Habit notification error:', err));
+        validEmails.forEach(email => {
+          emailjs.send(notif.serviceId, notif.templateId, {
+            to_email:  email,
+            task_name: `Habit reminder: ${h.name}`,
+            due_time:  `Today at ${h.reminderTime}`,
+            tab:       h.recur === 'daily' ? 'Daily Habit' : 'Habit',
+            priority:  `${calcStreak(h)} day streak`,
+          }).catch(err => console.warn('Habit notification error:', err));
+        });
       }
     });
   }
