@@ -10,8 +10,6 @@
   <link rel="manifest" href="/TODO/manifest.json" />
   <title>Todo</title>
   <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/otpauth@9/dist/otpauth.umd.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
   <script src="https://accounts.google.com/gsi/client" async></script>
   <style>
     html { font-size: 125%; }
@@ -38,53 +36,14 @@
       margin-bottom: 4px; letter-spacing: -0.3px; text-align: center;
     }
     .login-sub { font-size: 0.78rem; color: #888899; margin-bottom: 28px; text-align: center; }
-    .login-field { width: 100%; margin-bottom: 13px; }
-    .login-field label {
-      display: block; font-size: 0.7rem; font-weight: 600;
-      color: #888899; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;
-    }
-    .login-field input {
-      width: 100%; background: #22222f; border: 1.5px solid #2e2e40;
-      border-radius: 10px; color: #e8e8f0; font-size: 0.9rem;
-      padding: 12px 14px; outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-    .login-field input:focus { border-color: #00c4a0; box-shadow: 0 0 0 3px rgba(0,196,160,0.15); }
-    .totp-input-wrap { width: 100%; margin-bottom: 13px; }
-    .totp-input-wrap label {
-      display: block; font-size: 0.7rem; font-weight: 600;
-      color: #888899; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;
-    }
-    .totp-input-wrap input {
-      width: 100%; background: #22222f; border: 1.5px solid #2e2e40;
-      border-radius: 10px; color: #e8e8f0; font-size: 1.6rem; font-weight: 700;
-      letter-spacing: 0.25em; text-align: center; padding: 12px 14px; outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-    .totp-input-wrap input:focus { border-color: #00c4a0; box-shadow: 0 0 0 3px rgba(0,196,160,0.15); }
-    .login-btn {
-      width: 100%; margin-top: 8px;
-      background: #00c4a0; border: none; border-radius: 10px;
-      color: #fff; cursor: pointer; font-size: 0.95rem; font-weight: 700;
+    .login-error { margin-top: 12px; font-size: 0.78rem; color: #ff5f6d; min-height: 1.2em; text-align: center; }
+    .google-signin-btn {
+      display: flex; align-items: center; justify-content: center; gap: 10px;
+      width: 100%; margin-top: 8px; background: #fff; border: none; border-radius: 10px;
+      color: #3c3c3c; cursor: pointer; font-size: 0.95rem; font-weight: 600;
       padding: 13px; transition: opacity 0.15s;
     }
-    .login-btn:hover { opacity: 0.88; }
-    .login-error { margin-top: 12px; font-size: 0.78rem; color: #ff5f6d; min-height: 1.2em; text-align: center; }
-    /* Setup screen */
-    .setup-view, .login-view { width: 100%; display: flex; flex-direction: column; align-items: center; }
-    .setup-view.hidden, .login-view.hidden { display: none; }
-    #qrCanvas { border-radius: 12px; margin: 16px 0 12px; background: #fff; padding: 10px; display: inline-block; }
-    #qrCanvas img, #qrCanvas canvas { display: block; }
-    .setup-secret {
-      font-size: 0.75rem; color: #888899; background: #22222f;
-      border-radius: 8px; padding: 8px 14px; letter-spacing: 0.12em;
-      margin-bottom: 18px; word-break: break-all; text-align: center;
-    }
-    .setup-steps {
-      font-size: 0.78rem; color: #888899; margin-bottom: 20px;
-      line-height: 1.7; text-align: left; width: 100%;
-    }
-    .setup-steps span { color: #e8e8f0; font-weight: 600; }
+    .google-signin-btn:hover { opacity: 0.9; }
 
     :root {
       --bg: #0f0f13;
@@ -1074,51 +1033,22 @@
 </head>
 <body>
 
-<!-- ── Login / 2FA screen ── -->
+<!-- ── Login screen ── -->
 <div id="loginScreen">
   <div class="login-card">
-
-    <!-- First-time 2FA setup -->
-    <div class="setup-view" id="setupView">
-      <div class="login-logo">🔐</div>
-      <div class="login-title">Set up 2FA</div>
-      <div class="login-sub">One-time setup — scan with Google Authenticator</div>
-      <div class="setup-steps">
-        <span>1.</span> Open <span>Google Authenticator</span> on your phone<br>
-        <span>2.</span> Tap <span>+</span> → <span>Scan a QR code</span><br>
-        <span>3.</span> Scan the code below, then enter the 6-digit code to confirm
-      </div>
-      <div id="qrCanvas"></div>
-      <div class="setup-secret" id="setupSecretLabel"></div>
-      <div class="totp-input-wrap">
-        <label>Enter 6-digit code to confirm</label>
-        <input type="text" id="setupCode" maxlength="6" placeholder="000000" inputmode="numeric" autocomplete="one-time-code" />
-      </div>
-      <button class="login-btn" id="setupBtn">Verify &amp; Continue</button>
-      <div class="login-error" id="setupError"></div>
-    </div>
-
-    <!-- Normal login -->
-    <div class="login-view hidden" id="loginView">
-      <div class="login-logo">✅</div>
-      <div class="login-title">Welcome back, Rocky</div>
-      <div class="login-sub">Sign in to your dashboard</div>
-      <div class="login-field">
-        <label>Username</label>
-        <input type="text" id="loginUser" placeholder="Username" autocomplete="username" />
-      </div>
-      <div class="login-field">
-        <label>Password</label>
-        <input type="password" id="loginPass" placeholder="Password" autocomplete="current-password" />
-      </div>
-      <div class="totp-input-wrap">
-        <label>Authenticator code</label>
-        <input type="text" id="loginTotp" maxlength="6" placeholder="000000" inputmode="numeric" autocomplete="one-time-code" />
-      </div>
-      <button class="login-btn" id="loginBtn">Sign In</button>
-      <div class="login-error" id="loginError"></div>
-    </div>
-
+    <div class="login-logo">✅</div>
+    <div class="login-title">Rocky's Todo</div>
+    <div class="login-sub">Sign in to continue</div>
+    <button class="google-signin-btn" id="googleSignInBtn">
+      <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
+        <path d="M17.64 9.2c0-.637-.057-1.251-.164-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
+        <path d="M9 18c2.43 0 4.467-.806 5.956-2.184l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
+        <path d="M3.964 10.706A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.706V4.962H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.038l3.007-2.332z" fill="#FBBC05"/>
+        <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.962L3.964 6.294C4.672 4.169 6.656 3.58 9 3.58z" fill="#EA4335"/>
+      </svg>
+      Sign in with Google
+    </button>
+    <div class="login-error" id="loginError"></div>
   </div>
 </div>
 
@@ -1180,7 +1110,7 @@
       <div class="gcal-month-title" id="gcalMonthTitle"></div>
       <button class="gcal-nav" id="gcalNext">&#8250;</button>
     </div>
-    <button class="gcal-connect-btn" id="gcalConnectBtn">&#128197; Connect Google Calendar</button>
+    <button class="gcal-connect-btn" id="gcalConnectBtn" style="display:none">&#128197; Connect Google Calendar</button>
   </div>
   <div class="gcal-weekdays">
     <div class="gcal-weekday">S</div>
@@ -1452,6 +1382,10 @@
 </div>
 
 <script>
+  /* ── Global config ── */
+  const GCAL_CLIENT_ID = '602456987520-qnkupsi70susb139s03b3hpennauq2j1.apps.googleusercontent.com';
+  const ALLOWED_EMAILS = ['rocky.manghani@gmail.com']; // add emails here to invite others
+
   /* ── Storage ── */
   const KEYS = { work: 'todos_work', personal: 'todos_personal' };
   let activeTab = 'personal';
@@ -2682,7 +2616,12 @@
 
   // ── Logout ──
   function doLogout() {
-    localStorage.removeItem('todo_auth');
+    const email = localStorage.getItem('todo_auth_email');
+    localStorage.removeItem('todo_auth_email');
+    localStorage.removeItem('gcal_token');
+    if (typeof google !== 'undefined' && google.accounts && email) {
+      try { google.accounts.id.revoke(email, () => {}); } catch(e) {}
+    }
     location.reload();
   }
   document.getElementById('desktopLogout').addEventListener('click', doLogout);
@@ -2690,9 +2629,6 @@
 
   /* ── Google Calendar ── */
   (function() {
-    // ⚠️ Paste your Google OAuth Client ID here after setting up Google Cloud Console
-    const GCAL_CLIENT_ID = '602456987520-qnkupsi70susb139s03b3hpennauq2j1.apps.googleusercontent.com';
-
     const MONTHS = ['January','February','March','April','May','June',
                     'July','August','September','October','November','December'];
 
@@ -2980,6 +2916,16 @@
       }
     }
 
+    // Called by login flow once Google auth succeeds
+    window.onGoogleAuth = function(token) {
+      gcalToken = token;
+      storeGcalToken(token);
+      updateConnectBtn();
+      gcalEvents = {};
+      fetchEventsForMonth();
+      driveInit();
+    };
+
     document.getElementById('gcalConnectBtn').addEventListener('click', () => {
       if (gcalToken) {
         gcalToken = null;
@@ -3190,99 +3136,61 @@
     navigator.serviceWorker.register('/TODO/sw.js').catch(() => {});
   }
 
-  /* ── Login gate + Google Authenticator 2FA ── */
+  /* ── Login gate — Google Sign-In ── */
   (function() {
-    const TOTP_SECRET   = 'RNMGTODO2FARPKX3';
-    const SESSION_KEY   = 'todo_auth';
-    const SETUP_KEY     = 'todo_2fa_setup';
+    const SESSION_KEY = 'todo_auth_email';
+    const screen = document.getElementById('loginScreen');
+    const errorEl = document.getElementById('loginError');
 
-    const screen      = document.getElementById('loginScreen');
-    const setupView   = document.getElementById('setupView');
-    const loginView   = document.getElementById('loginView');
-
-    const totp = new OTPAuth.TOTP({
-      secret:    OTPAuth.Secret.fromBase32(TOTP_SECRET),
-      algorithm: 'SHA1',
-      digits:    6,
-      period:    30
-    });
-
-    function verifyCode(code) {
-      return totp.validate({ token: code.trim(), window: 1 }) !== null;
-    }
-
-    function showError(id, msg) {
-      const el = document.getElementById(id);
-      el.textContent = msg;
-      setTimeout(() => { el.textContent = ''; }, 3000);
-    }
-
-    // Already logged in this session
-    if (localStorage.getItem(SESSION_KEY) === '1') {
+    // Restore session
+    if (localStorage.getItem(SESSION_KEY)) {
       screen.classList.add('hidden');
       return;
     }
 
-    // Always skip setup — secret is hardcoded, user already has it in their authenticator
-    localStorage.setItem(SETUP_KEY, '1');
-    setupView.classList.add('hidden');
-    loginView.classList.remove('hidden');
+    document.getElementById('googleSignInBtn').addEventListener('click', () => {
+      errorEl.textContent = '';
 
-    if (false) {
-      // (QR setup kept here for reference but never shown)
-      const uri = totp.toString();
-      const otpauthUri = `otpauth://totp/${encodeURIComponent('TodoApp:Rocky')}?secret=${TOTP_SECRET}&issuer=TodoApp&algorithm=SHA1&digits=6&period=30`;
-      new QRCode(document.getElementById('qrCanvas'), {
-        text: otpauthUri,
-        width: 180, height: 180,
-        colorDark: '#000000', colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.M
+      if (typeof google === 'undefined' || !google.accounts) {
+        errorEl.textContent = 'Google Sign-In failed to load. Check your connection.';
+        return;
+      }
+
+      const tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: GCAL_CLIENT_ID,
+        scope: [
+          'email',
+          'openid',
+          'https://www.googleapis.com/auth/calendar.events',
+          'https://www.googleapis.com/auth/calendar.readonly',
+          'https://www.googleapis.com/auth/drive.file'
+        ].join(' '),
+        callback: async (resp) => {
+          if (resp.error || !resp.access_token) {
+            errorEl.textContent = 'Sign-in cancelled or failed.';
+            return;
+          }
+          try {
+            const info = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+              headers: { Authorization: 'Bearer ' + resp.access_token }
+            }).then(r => r.json());
+            if (!ALLOWED_EMAILS.includes(info.email)) {
+              errorEl.textContent = 'Access denied. Your account is not authorized.';
+              google.accounts.oauth2.revoke(resp.access_token, () => {});
+              return;
+            }
+            localStorage.setItem(SESSION_KEY, info.email);
+            screen.classList.add('hidden');
+            if (typeof window.onGoogleAuth === 'function') {
+              window.onGoogleAuth(resp.access_token);
+            }
+          } catch(e) {
+            errorEl.textContent = 'Sign-in failed. Please try again.';
+          }
+        }
       });
-      document.getElementById('setupSecretLabel').textContent = 'Manual key: ' + TOTP_SECRET;
-    }
-
-    // Setup flow
-    document.getElementById('setupBtn').addEventListener('click', () => {
-      const code = document.getElementById('setupCode').value.trim();
-      if (verifyCode(code)) {
-        localStorage.setItem(SETUP_KEY, '1');
-        setupView.classList.add('hidden');
-        loginView.classList.remove('hidden');
-        setTimeout(() => document.getElementById('loginUser').focus(), 50);
-      } else {
-        document.getElementById('setupCode').value = '';
-        showError('setupError', 'Incorrect code — try again.');
-      }
+      tokenClient.requestAccessToken();
     });
-    document.getElementById('setupCode').addEventListener('keydown', e => {
-      if (e.key === 'Enter') document.getElementById('setupBtn').click();
-    });
-
-    // Login flow
-    document.getElementById('loginBtn').addEventListener('click', attemptLogin);
-    document.getElementById('loginTotp').addEventListener('keydown', e => {
-      if (e.key === 'Enter') attemptLogin();
-    });
-    document.getElementById('loginPass').addEventListener('keydown', e => {
-      if (e.key === 'Enter') document.getElementById('loginTotp').focus();
-    });
-    document.getElementById('loginUser').addEventListener('keydown', e => {
-      if (e.key === 'Enter') document.getElementById('loginPass').focus();
-    });
-
-    function attemptLogin() {
-      const user = document.getElementById('loginUser').value.trim();
-      const pass = document.getElementById('loginPass').value;
-      const code = document.getElementById('loginTotp').value.trim();
-      if (user === 'Rocky' && pass === 'Rocky' && verifyCode(code)) {
-        localStorage.setItem(SESSION_KEY, '1');
-        screen.classList.add('hidden');
-      } else {
-        document.getElementById('loginTotp').value = '';
-        document.getElementById('loginPass').value = '';
-        showError('loginError', 'Incorrect credentials or code.');
-      }
-    }
   })();
 </script>
 </body>
