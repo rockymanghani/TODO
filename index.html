@@ -316,9 +316,17 @@
     .app.tab-personal { --accent: #00c4a0; --accent-glow: rgba(0,196,160,0.25); }
 
     /* ── Input area ── */
-    .input-wrap { display: flex; flex-direction: column; gap: 8px; margin-bottom: 24px; }
-    .input-row  { display: flex; gap: 10px; }
-    .input-row-meta { display: flex; gap: 8px; }
+    .input-wrap {
+      display: flex; flex-direction: column; gap: 0; margin-bottom: 24px;
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 14px; overflow: hidden;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .input-wrap:focus-within {
+      border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    .input-row  { display: flex; gap: 0; }
+    .input-row-meta { display: flex; gap: 0; }
 
     .input-row input[type="text"] {
       flex: 1; background: var(--surface); border: 1.5px solid var(--border);
@@ -368,6 +376,33 @@
       transition: color 0.15s; flex-shrink: 0;
     }
     .date-clear-btn:hover { color: var(--danger); }
+
+    /* ── Composer card — scoped overrides ── */
+    .input-wrap .input-row input[type="text"] {
+      background: transparent; border: none; border-radius: 0;
+    }
+    .input-wrap .input-row input[type="text"]:focus {
+      border-color: transparent; box-shadow: none;
+    }
+    .input-wrap .btn-add { border-radius: 0; }
+    .input-wrap .input-row-meta:not(.remind-row) {
+      border-top: 1.5px solid var(--border); align-items: stretch;
+    }
+    .input-wrap .priority-select,
+    .input-wrap .recur-select {
+      background: transparent; border: none; border-radius: 0;
+      border-right: 1.5px solid var(--border); padding: 9px 12px;
+    }
+    .input-wrap #recurPick { border-right: none; }
+    .input-wrap .date-trigger {
+      background: transparent; border: none; border-radius: 0;
+      border-right: 1.5px solid var(--border); padding: 9px 12px;
+    }
+    .input-wrap .date-trigger:hover { background: rgba(255,255,255,0.03); }
+    .input-wrap .date-trigger:focus,
+    .input-wrap .date-trigger.open { background: rgba(255,255,255,0.03); box-shadow: none; outline: none; }
+    #newRemindRow { display: none; padding: 8px 14px; }
+    #newRemindRow.visible { display: flex; border-top: 1.5px solid var(--border); }
 
     /* ── Calendar popup ── */
     .cal-popup {
@@ -1640,6 +1675,7 @@
     const clear = document.getElementById('newDueClear');
     const trig  = document.getElementById('newDueTrigger');
     text.textContent = fmtDueShort(newDueTs);
+    document.getElementById('newRemindRow').classList.toggle('visible', !!newDueTs);
     if (newDueTs) {
       trig.classList.add('has-date');
       clear.style.display = 'inline';
