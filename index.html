@@ -801,6 +801,26 @@
     }
     .habit-monthly-day::-webkit-inner-spin-button { -webkit-appearance: none; }
     .habit-monthly-day:focus { border-color: var(--accent); }
+    .time-pick {
+      display: inline-flex; align-items: center; gap: 2px;
+      background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: 8px; padding: 5px 8px;
+    }
+    .time-pick-h, .time-pick-m {
+      width: 32px; background: transparent; border: none; outline: none;
+      color: var(--text); font-size: 0.88rem; font-weight: 600;
+      text-align: center; -moz-appearance: textfield;
+    }
+    .time-pick-h::-webkit-inner-spin-button,
+    .time-pick-m::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .time-pick-sep { color: var(--text-dim); font-weight: 700; font-size: 0.88rem; }
+    .time-pick-ampm {
+      background: var(--accent); border: none; border-radius: 6px;
+      color: #fff; font-size: 0.75rem; font-weight: 700;
+      padding: 3px 7px; cursor: pointer; margin-left: 4px;
+      transition: opacity 0.15s;
+    }
+    .time-pick-ampm:hover { opacity: 0.85; }
     .form-hint a:hover { text-decoration: underline; }
 
     /* Toggle switch */
@@ -1374,7 +1394,12 @@
         </div>
         <div class="habit-schedule-time-row">
           <span class="habit-schedule-at">at</span>
-          <input type="time" class="habit-schedule-time" id="habitWeeklyTime" value="09:00" />
+          <div class="time-pick" id="habitWeeklyTime">
+            <input class="time-pick-h" type="number" min="1" max="12" value="9" />
+            <span class="time-pick-sep">:</span>
+            <input class="time-pick-m" type="number" min="0" max="59" value="00" />
+            <button type="button" class="time-pick-ampm">AM</button>
+          </div>
         </div>
       </div>
       <!-- Monthly: pick a day number + time -->
@@ -1383,7 +1408,12 @@
           <span class="habit-schedule-at">Day</span>
           <input type="number" class="habit-monthly-day" id="habitMonthlyDay" min="1" max="31" value="1" />
           <span class="habit-schedule-at">of the month at</span>
-          <input type="time" class="habit-schedule-time" id="habitMonthlyTime" value="09:00" />
+          <div class="time-pick" id="habitMonthlyTime">
+            <input class="time-pick-h" type="number" min="1" max="12" value="9" />
+            <span class="time-pick-sep">:</span>
+            <input class="time-pick-m" type="number" min="0" max="59" value="00" />
+            <button type="button" class="time-pick-ampm">AM</button>
+          </div>
         </div>
       </div>
     </div>
@@ -2721,11 +2751,11 @@
       weeklyPicker.querySelectorAll('.habit-day-btn').forEach(btn => {
         btn.classList.toggle('active', Number(btn.dataset.day) === h?.weeklyDay);
       });
-      document.getElementById('habitWeeklyTime').value = h?.scheduleTime || '09:00';
+      setTimePick('habitWeeklyTime', h?.scheduleTime || '09:00');
     } else if (recur === 'monthly') {
       monthlyPicker.classList.remove('hidden');
       document.getElementById('habitMonthlyDay').value = h?.monthlyDay ?? 1;
-      document.getElementById('habitMonthlyTime').value = h?.scheduleTime || '09:00';
+      setTimePick('habitMonthlyTime', h?.scheduleTime || '09:00');
     }
     document.getElementById('habitNotifTarget').value  = h?.notifTarget   || '';
     document.getElementById('habitReminderTime').value = h?.reminderTime  || '08:00';
@@ -2757,6 +2787,31 @@
     const btn = e.target.closest('.habit-day-btn');
     if (btn) btn.classList.toggle('active');
   });
+  // ── Custom time picker helpers ──
+  function getTimePick(id) {
+    const el = document.getElementById(id);
+    const h = parseInt(el.querySelector('.time-pick-h').value) || 12;
+    const m = parseInt(el.querySelector('.time-pick-m').value) || 0;
+    const ampm = el.querySelector('.time-pick-ampm').textContent;
+    const h24 = ampm === 'AM' ? (h === 12 ? 0 : h) : (h === 12 ? 12 : h + 12);
+    return `${String(h24).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  }
+  function setTimePick(id, value) {
+    const el = document.getElementById(id);
+    if (!el || !value) return;
+    const [h24, m] = value.split(':').map(Number);
+    const ampm = h24 >= 12 ? 'PM' : 'AM';
+    const h12 = h24 % 12 || 12;
+    el.querySelector('.time-pick-h').value = h12;
+    el.querySelector('.time-pick-m').value = String(m).padStart(2, '0');
+    el.querySelector('.time-pick-ampm').textContent = ampm;
+  }
+  document.querySelectorAll('.time-pick-ampm').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.textContent = btn.textContent === 'AM' ? 'PM' : 'AM';
+    });
+  });
+
   // Weekly day — single-select
   document.getElementById('habitWeeklyDays').addEventListener('click', e => {
     const btn = e.target.closest('.habit-day-btn');
@@ -2789,8 +2844,8 @@
     const weeklyDayBtn = document.querySelector('#habitWeeklyDays .habit-day-btn.active');
     const weeklyDay  = recur === 'weekly'  ? (weeklyDayBtn ? Number(weeklyDayBtn.dataset.day) : null) : null;
     const monthlyDay = recur === 'monthly' ? (parseInt(document.getElementById('habitMonthlyDay').value) || 1) : null;
-    const scheduleTime = recur === 'weekly'  ? document.getElementById('habitWeeklyTime').value
-                       : recur === 'monthly' ? document.getElementById('habitMonthlyTime').value
+    const scheduleTime = recur === 'weekly'  ? getTimePick('habitWeeklyTime')
+                       : recur === 'monthly' ? getTimePick('habitMonthlyTime')
                        : null;
     const payload = {
       name,
