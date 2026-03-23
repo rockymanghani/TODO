@@ -782,6 +782,25 @@
       background: var(--accent); border-color: var(--accent); color: #fff;
     }
     .habit-day-btn:hover:not(.active) { border-color: var(--accent); color: var(--text); }
+    .habit-schedule-picker { margin-top: 0; }
+    .habit-schedule-picker.hidden { display: none; }
+    .habit-schedule-time-row {
+      display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap;
+    }
+    .habit-schedule-at { font-size: 0.78rem; color: var(--text-dim); }
+    .habit-schedule-time {
+      background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 0.82rem;
+      padding: 6px 10px; outline: none; transition: border-color 0.2s;
+    }
+    .habit-schedule-time:focus { border-color: var(--accent); }
+    .habit-monthly-day {
+      width: 56px; background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 0.82rem;
+      padding: 6px 10px; outline: none; text-align: center; -moz-appearance: textfield;
+    }
+    .habit-monthly-day::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .habit-monthly-day:focus { border-color: var(--accent); }
     .form-hint a:hover { text-decoration: underline; }
 
     /* Toggle switch */
@@ -1341,6 +1360,31 @@
         <button type="button" class="habit-day-btn" data-day="5">F</button>
         <button type="button" class="habit-day-btn" data-day="6">S</button>
         <button type="button" class="habit-day-btn" data-day="0">S</button>
+      </div>
+      <!-- Weekly: pick a day + time -->
+      <div class="habit-schedule-picker hidden" id="habitWeeklyPicker">
+        <div class="habit-days-picker" id="habitWeeklyDays" style="margin-top:10px">
+          <button type="button" class="habit-day-btn" data-day="1">M</button>
+          <button type="button" class="habit-day-btn" data-day="2">T</button>
+          <button type="button" class="habit-day-btn" data-day="3">W</button>
+          <button type="button" class="habit-day-btn" data-day="4">T</button>
+          <button type="button" class="habit-day-btn" data-day="5">F</button>
+          <button type="button" class="habit-day-btn" data-day="6">S</button>
+          <button type="button" class="habit-day-btn" data-day="0">S</button>
+        </div>
+        <div class="habit-schedule-time-row">
+          <span class="habit-schedule-at">at</span>
+          <input type="time" class="habit-schedule-time" id="habitWeeklyTime" value="09:00" />
+        </div>
+      </div>
+      <!-- Monthly: pick a day number + time -->
+      <div class="habit-schedule-picker hidden" id="habitMonthlyPicker">
+        <div class="habit-schedule-time-row" style="margin-top:10px">
+          <span class="habit-schedule-at">Day</span>
+          <input type="number" class="habit-monthly-day" id="habitMonthlyDay" min="1" max="31" value="1" />
+          <span class="habit-schedule-at">of the month at</span>
+          <input type="time" class="habit-schedule-time" id="habitMonthlyTime" value="09:00" />
+        </div>
       </div>
     </div>
 
@@ -2318,20 +2362,50 @@
     }
 
     if (recur === 'weekly') {
-      // Get the Monday of each week
+      if (habit.weeklyDay != null) {
+        const todayStr = today();
+        let streak = 0;
+        // Find the most recent past occurrence of the target weekday
+        let d = new Date();
+        const daysBack = (d.getDay() - habit.weeklyDay + 7) % 7;
+        d = addDays(d, -daysBack);
+        for (let i = 0; i < 104; i++) {
+          const ds = dateStr(d);
+          if (set.has(ds)) { streak++; }
+          else if (ds !== todayStr) { break; }
+          d = addDays(d, -7);
+        }
+        return streak;
+      }
+      // Generic weekly — any completion in the week counts
       function weekKey(d) {
         const r = new Date(d); r.setDate(r.getDate() - r.getDay() + 1); return dateStr(r);
       }
       const weeks = new Set([...set].map(s => weekKey(new Date(s))));
       let streak = 0;
       let d = new Date();
-      // If this week isn't done yet, start from last week
       if (!weeks.has(weekKey(d))) d = addDays(d, -7);
       while (weeks.has(weekKey(d))) { streak++; d = addDays(d, -7); }
       return streak;
     }
 
     if (recur === 'monthly') {
+      if (habit.monthlyDay != null) {
+        const todayStr = today();
+        let streak = 0;
+        const now = new Date();
+        // Start from this month's target date, or last month's if it hasn't arrived yet
+        let target = new Date(now.getFullYear(), now.getMonth(), habit.monthlyDay);
+        if (target > now) target = new Date(now.getFullYear(), now.getMonth() - 1, habit.monthlyDay);
+        for (let i = 0; i < 36; i++) {
+          const ds = dateStr(target);
+          if (set.has(ds)) { streak++; }
+          else if (ds !== todayStr) { break; }
+          target = new Date(target.getFullYear(), target.getMonth() - 1, habit.monthlyDay);
+        }
+        return streak;
+      }
+      // Generic monthly — any completion in the month counts
       function monthKey(d) { return d.toISOString().slice(0, 7); }
       const months = new Set([...set].map(s => monthKey(new Date(s))));
       let streak = 0;
@@ -2365,8 +2439,11 @@
   }
 
   function isDueToday(h) {
-    if (h.recur !== 'custom') return true;
-    return (h.customDays || []).includes(new Date().getDay());
+    const now = new Date();
+    if (h.recur === 'custom')  return (h.customDays || []).includes(now.getDay());
+    if (h.recur === 'weekly'  && h.weeklyDay  != null) return now.getDay()  === h.weeklyDay;
+    if (h.recur === 'monthly' && h.monthlyDay != null) return now.getDate() === h.monthlyDay;
+    return true;
   }
 
   function bestStreak(habit) {
@@ -2433,9 +2510,19 @@
 
     const fireEmoji = streak >= 3 ? ' <span class="streak-fire">&#128293;</span>' : '';
     const DAY_ABBR2 = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+    const DAY_FULL  = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+    function fmtSchedTime(t) {
+      if (!t) return '';
+      const [hh, mm] = t.split(':').map(Number);
+      return ` at ${hh % 12 || 12}:${String(mm).padStart(2,'0')} ${hh >= 12 ? 'PM' : 'AM'}`;
+    }
     const recurLabel = habit.recur === 'custom'
       ? ((habit.customDays || []).slice().sort((a,b)=>a-b).map(d => DAY_ABBR2[d]).join(' ') || 'Custom')
-      : ({ daily:'Daily', weekly:'Weekly', monthly:'Monthly' }[habit.recur] || 'Daily');
+      : habit.recur === 'weekly'  && habit.weeklyDay  != null
+        ? `${DAY_FULL[habit.weeklyDay]}s${fmtSchedTime(habit.scheduleTime)}`
+        : habit.recur === 'monthly' && habit.monthlyDay != null
+          ? `Day ${habit.monthlyDay}${fmtSchedTime(habit.scheduleTime)}`
+          : ({ daily:'Daily', weekly:'Weekly', monthly:'Monthly' }[habit.recur] || 'Daily');
 
     card.innerHTML = `
       <div class="habit-card-top">
@@ -2617,15 +2704,28 @@
     const recur = h?.recur || 'daily';
     document.getElementById('habitRecur').value        = recur;
     const picker = document.getElementById('habitDaysPicker');
+    const weeklyPicker = document.getElementById('habitWeeklyPicker');
+    const monthlyPicker = document.getElementById('habitMonthlyPicker');
+    // reset all
+    [picker, weeklyPicker, monthlyPicker].forEach(p => p.classList.add('hidden'));
+    picker.querySelectorAll('.habit-day-btn').forEach(b => b.classList.remove('active'));
+    weeklyPicker.querySelectorAll('.habit-day-btn').forEach(b => b.classList.remove('active'));
     if (recur === 'custom') {
       picker.classList.remove('hidden');
       const days = new Set(h?.customDays || []);
       picker.querySelectorAll('.habit-day-btn').forEach(btn => {
         btn.classList.toggle('active', days.has(Number(btn.dataset.day)));
       });
-    } else {
-      picker.classList.add('hidden');
-      picker.querySelectorAll('.habit-day-btn').forEach(btn => btn.classList.remove('active'));
+    } else if (recur === 'weekly') {
+      weeklyPicker.classList.remove('hidden');
+      weeklyPicker.querySelectorAll('.habit-day-btn').forEach(btn => {
+        btn.classList.toggle('active', Number(btn.dataset.day) === h?.weeklyDay);
+      });
+      document.getElementById('habitWeeklyTime').value = h?.scheduleTime || '09:00';
+    } else if (recur === 'monthly') {
+      monthlyPicker.classList.remove('hidden');
+      document.getElementById('habitMonthlyDay').value = h?.monthlyDay ?? 1;
+      document.getElementById('habitMonthlyTime').value = h?.scheduleTime || '09:00';
     }
     document.getElementById('habitNotifTarget').value  = h?.notifTarget   || '';
     document.getElementById('habitReminderTime').value = h?.reminderTime  || '08:00';
@@ -2642,17 +2742,28 @@
   }
 
   document.getElementById('habitRecur').addEventListener('change', function() {
-    const picker = document.getElementById('habitDaysPicker');
-    if (this.value === 'custom') {
-      picker.classList.remove('hidden');
-    } else {
-      picker.classList.add('hidden');
-      picker.querySelectorAll('.habit-day-btn').forEach(btn => btn.classList.remove('active'));
-    }
+    const v = this.value;
+    const customPicker  = document.getElementById('habitDaysPicker');
+    const weeklyPicker  = document.getElementById('habitWeeklyPicker');
+    const monthlyPicker = document.getElementById('habitMonthlyPicker');
+    customPicker.classList.toggle('hidden', v !== 'custom');
+    if (v !== 'custom') customPicker.querySelectorAll('.habit-day-btn').forEach(b => b.classList.remove('active'));
+    weeklyPicker.classList.toggle('hidden', v !== 'weekly');
+    if (v !== 'weekly') weeklyPicker.querySelectorAll('.habit-day-btn').forEach(b => b.classList.remove('active'));
+    monthlyPicker.classList.toggle('hidden', v !== 'monthly');
   });
+  // Custom days — multi-select
   document.getElementById('habitDaysPicker').addEventListener('click', e => {
     const btn = e.target.closest('.habit-day-btn');
     if (btn) btn.classList.toggle('active');
+  });
+  // Weekly day — single-select
+  document.getElementById('habitWeeklyDays').addEventListener('click', e => {
+    const btn = e.target.closest('.habit-day-btn');
+    if (!btn) return;
+    const wasActive = btn.classList.contains('active');
+    document.querySelectorAll('#habitWeeklyDays .habit-day-btn').forEach(b => b.classList.remove('active'));
+    if (!wasActive) btn.classList.add('active');
   });
 
   document.getElementById('newHabitBtn').addEventListener('click', () => openHabitModal(null));
@@ -2675,11 +2786,20 @@
     const customDays = recur === 'custom'
       ? [...document.querySelectorAll('#habitDaysPicker .habit-day-btn.active')].map(b => Number(b.dataset.day))
       : [];
+    const weeklyDayBtn = document.querySelector('#habitWeeklyDays .habit-day-btn.active');
+    const weeklyDay  = recur === 'weekly'  ? (weeklyDayBtn ? Number(weeklyDayBtn.dataset.day) : null) : null;
+    const monthlyDay = recur === 'monthly' ? (parseInt(document.getElementById('habitMonthlyDay').value) || 1) : null;
+    const scheduleTime = recur === 'weekly'  ? document.getElementById('habitWeeklyTime').value
+                       : recur === 'monthly' ? document.getElementById('habitMonthlyTime').value
+                       : null;
     const payload = {
       name,
       icon:         customIcon || selectedIcon || '⭐',
       recur,
       customDays,
+      weeklyDay,
+      monthlyDay,
+      scheduleTime,
       notifTarget:  document.getElementById('habitNotifTarget').value,
       reminderTime: document.getElementById('habitReminderTime').value,
     };
