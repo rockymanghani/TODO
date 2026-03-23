@@ -968,12 +968,117 @@
     }
     .btn-new-habit:hover { opacity: 0.88; }
 
+    /* ── Hydration tab ── */
+    .habits-sidebar.hydration-mode { --accent: #3d9fd4; --accent-glow: rgba(61,159,212,0.25); }
+    .habits-sidebar.hydration-mode .habits-tab-switcher { --accent: #3d9fd4; --accent-glow: rgba(61,159,212,0.25); }
+    .hydration-area { display: none; }
+    #hydrationCount { display: none; }
+    #hydrationGoalBtn { display: none; }
+    .habits-sidebar.hydration-mode .habit-area  { display: none; }
+    .habits-sidebar.hydration-mode .hydration-area { display: block; }
+    .habits-sidebar.hydration-mode #habitCount  { display: none; }
+    .habits-sidebar.hydration-mode #hydrationCount { display: block; }
+    .habits-sidebar.hydration-mode #newHabitBtn { display: none; }
+    .habits-sidebar.hydration-mode #hydrationGoalBtn { display: flex; }
+
+    .hydration-card {
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 14px; padding: 16px; margin-bottom: 14px;
+    }
+    .hydration-card-header {
+      display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px;
+    }
+    .hydration-card-title { font-size: 0.88rem; font-weight: 700; color: var(--text); }
+    .hydration-card-oz { font-size: 1.6rem; font-weight: 800; color: #3d9fd4; line-height: 1; text-align: right; }
+    .hydration-card-goal { font-size: 0.7rem; color: var(--text-dim); text-align: right; }
+    .hydration-fill-track {
+      height: 8px; background: var(--surface2); border-radius: 4px; margin-bottom: 5px; overflow: hidden;
+    }
+    .hydration-fill-bar { height: 100%; background: #3d9fd4; border-radius: 4px; transition: width 0.4s ease; width: 0%; }
+    .hydration-fill-label { font-size: 0.72rem; color: var(--text-dim); margin-bottom: 12px; }
+    .hydration-fill-label span { color: var(--text); }
+    .hydration-quick-btns { display: flex; flex-wrap: wrap; gap: 7px; }
+    .hydration-quick-btn {
+      flex: 1 1 calc(25% - 7px); background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 0.82rem; font-weight: 600;
+      padding: 8px 4px; cursor: pointer; text-align: center;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .hydration-quick-btn:hover { border-color: #3d9fd4; color: #3d9fd4; }
+    .hydration-custom-trigger { flex: 1 1 calc(50% - 7px); }
+    .hydration-custom-row { display: none; align-items: center; gap: 6px; margin-top: 8px; }
+    .hydration-custom-row.visible { display: flex; }
+    .hydration-custom-input {
+      flex: 1; background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 0.88rem;
+      padding: 7px 10px; outline: none; -moz-appearance: textfield;
+    }
+    .hydration-custom-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .hydration-custom-input:focus { border-color: #3d9fd4; }
+    .hydration-custom-confirm {
+      background: #3d9fd4; border: none; border-radius: 8px; color: #fff;
+      font-size: 0.82rem; font-weight: 700; padding: 7px 14px; cursor: pointer;
+    }
+    .hydration-section-title {
+      font-size: 0.68rem; font-weight: 700; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: 0.08em;
+    }
+    .hydration-streak-row {
+      display: flex; justify-content: space-between; align-items: flex-start; margin: 10px 0 14px;
+    }
+    .hydration-streak-num { font-size: 2.2rem; font-weight: 800; color: #3d9fd4; line-height: 1; }
+    .hydration-streak-lbl { font-size: 0.72rem; color: var(--text-dim); margin-top: 3px; }
+    .hydration-best-badge {
+      background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: 10px; padding: 7px 14px; text-align: center;
+    }
+    .hydration-best-num { font-size: 1.1rem; font-weight: 700; color: #ff9f43; }
+    .hydration-best-lbl { font-size: 0.65rem; color: var(--text-dim); }
+    .hydration-dots { display: flex; gap: 4px; justify-content: space-between; margin-bottom: 6px; }
+    .hydration-dot-wrap { display: flex; flex-direction: column; align-items: center; gap: 4px; flex: 1; }
+    .hydration-dot {
+      width: 30px; height: 30px; border-radius: 50%; border: 2px solid var(--border);
+      background: var(--surface2); display: flex; align-items: center; justify-content: center;
+      font-size: 0.65rem; font-weight: 700; color: var(--text-dim);
+    }
+    .hydration-dot.met { background: #3d9fd4; border-color: #3d9fd4; color: #fff; }
+    .hydration-dot.partial { background: rgba(61,159,212,0.2); border-color: #3d9fd4; color: #3d9fd4; }
+    .hydration-dot.today { border-color: #3d9fd4; color: #3d9fd4; }
+    .hydration-dot-lbl { font-size: 0.63rem; color: var(--text-dim); }
+    .hydration-dot-legend { font-size: 0.65rem; color: var(--text-dim); margin-top: 2px; }
+    .hydration-history-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .hydration-view-all { font-size: 0.72rem; color: #3d9fd4; background: none; border: none; cursor: pointer; padding: 0; }
+    .hydration-history-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .hydration-history-date { font-size: 0.7rem; color: var(--text-dim); width: 76px; flex-shrink: 0; }
+    .hydration-history-track { flex: 1; height: 6px; background: var(--surface2); border-radius: 3px; overflow: hidden; }
+    .hydration-history-fill { height: 100%; background: #3d9fd4; border-radius: 3px; }
+    .hydration-history-oz { font-size: 0.7rem; color: var(--text); width: 38px; text-align: right; flex-shrink: 0; }
+    .hydration-history-icon { font-size: 0.72rem; width: 14px; flex-shrink: 0; color: var(--done); }
+    .hydration-history-icon.miss { color: var(--danger); }
+    .hydration-goal-settings {
+      background: var(--surface); border: 1.5px solid var(--border);
+      border-radius: 14px; padding: 14px; margin-bottom: 14px; display: none;
+    }
+    .hydration-goal-settings.visible { display: block; }
+    .hydration-goal-row { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+    .hydration-goal-input {
+      width: 72px; background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: 8px; color: var(--text); font-size: 0.88rem;
+      padding: 7px 10px; outline: none; text-align: center; -moz-appearance: textfield;
+    }
+    .hydration-goal-input::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .hydration-goal-input:focus { border-color: #3d9fd4; }
+    .hydration-goal-save {
+      background: #3d9fd4; border: none; border-radius: 8px; color: #fff;
+      font-size: 0.82rem; font-weight: 700; padding: 7px 14px; cursor: pointer;
+    }
+
     /* Habit card */
-    .habit-list { display: flex; flex-direction: column; gap: 12px; }
+    .habit-list { display: flex; flex-direction: column; gap: 8px; }
     .habit-empty { text-align: center; color: var(--text-dim); padding: 48px 0; font-size: 0.9rem; }
     .habit-card {
       background: var(--surface); border: 1.5px solid var(--border);
-      border-radius: var(--radius); padding: 16px 18px;
+      border-radius: var(--radius); padding: 12px 14px;
       transition: border-color 0.2s, box-shadow 0.2s;
       animation: slideIn 0.18s ease;
     }
@@ -982,12 +1087,12 @@
 
     .habit-card-top {
       display: flex; align-items: flex-start;
-      justify-content: space-between; gap: 12px; margin-bottom: 14px;
+      justify-content: space-between; gap: 10px; margin-bottom: 10px;
     }
-    .habit-left { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0; }
-    .habit-icon { font-size: 1.8rem; flex-shrink: 0; line-height: 1; }
+    .habit-left { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+    .habit-icon { font-size: 1.5rem; flex-shrink: 0; line-height: 1; }
     .habit-info { flex: 1; min-width: 0; }
-    .habit-name { font-size: 1rem; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+    .habit-name { font-size: 0.92rem; font-weight: 700; color: var(--text); margin-bottom: 2px; }
     .habit-sub  { font-size: 0.74rem; color: var(--text-dim); display: flex; gap: 8px; flex-wrap: wrap; }
     .habit-tag  {
       background: var(--surface2); border-radius: 4px;
@@ -998,17 +1103,17 @@
     .streak-box {
       display: flex; flex-direction: column; align-items: center;
       background: var(--surface2); border: 1.5px solid var(--border);
-      border-radius: 10px; padding: 8px 14px; flex-shrink: 0; min-width: 64px;
+      border-radius: 10px; padding: 6px 10px; flex-shrink: 0; min-width: 56px;
       transition: border-color 0.2s;
     }
     .streak-box.active { border-color: var(--accent); }
     .streak-top { display: flex; align-items: center; gap: 4px; }
     .streak-num {
-      font-size: 1.8rem; font-weight: 800; line-height: 1; color: var(--accent);
+      font-size: 1.4rem; font-weight: 800; line-height: 1; color: var(--accent);
     }
-    .streak-fire { font-size: 1.1rem; }
+    .streak-fire { font-size: 0.95rem; }
     .streak-lbl {
-      font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+      font-size: 0.58rem; font-weight: 700; text-transform: uppercase;
       letter-spacing: 0.06em; color: var(--text-dim); margin-top: 2px;
     }
     .streak-best {
@@ -1017,7 +1122,7 @@
 
     /* 7-day dot grid with week navigation */
     .habit-grid-wrap {
-      display: flex; align-items: center; gap: 4px; margin-bottom: 14px;
+      display: flex; align-items: center; gap: 4px; margin-bottom: 10px;
     }
     .habit-week-btn {
       background: none; border: none; color: var(--text-dim); cursor: pointer;
@@ -1034,10 +1139,11 @@
       display: flex; flex-direction: column; align-items: center; gap: 3px; flex-shrink: 0;
     }
     .habit-dot {
-      width: 24px; height: 24px; border-radius: 5px; background: var(--surface2);
+      width: 20px; height: 20px; border-radius: 4px; background: var(--surface2);
       border: 1.5px solid var(--border); transition: background 0.2s, border-color 0.2s;
     }
-    .habit-dot.filled   { background: var(--accent); border-color: var(--accent); }
+    .habit-dot.filled     { background: var(--done); border-color: var(--done); }
+    .habit-dot.scheduled  { background: rgba(74,158,255,0.18); border-color: #4a9eff; }
     .habit-dot.today-ring { outline: 2px solid var(--accent); outline-offset: 2px; }
     .habit-dot-label { font-size: 0.55rem; color: var(--text-dim); font-weight: 600; }
 
@@ -1328,17 +1434,88 @@
 <div class="habits-sidebar">
   <div class="habits-sidebar-header">
     <div class="tab-switcher habits-tab-switcher" style="flex:1;margin-bottom:0;">
-      <div class="tab-btn active">
+      <div class="tab-btn active" id="habitsTabBtn">
         <span class="tab-icon">&#128293;</span>
         <span>Habits</span>
         <span class="tab-badge" id="badge-habits">0</span>
       </div>
+      <div class="tab-btn" id="hydrationTabBtn">
+        <span class="tab-icon">&#128167;</span>
+        <span>Hydration</span>
+      </div>
     </div>
     <button class="btn-new-habit" id="newHabitBtn">+ New Habit</button>
+    <button class="btn-new-habit" id="hydrationGoalBtn" style="background:#3d9fd4;">&#9881; Goal</button>
   </div>
   <div class="habits-sidebar-count" id="habitCount"></div>
+  <div class="habits-sidebar-count" id="hydrationCount"></div>
   <div class="habit-area">
     <div class="habit-list" id="habitList"></div>
+  </div>
+
+  <!-- ── Hydration area ── -->
+  <div class="hydration-area" id="hydrationArea">
+    <!-- Goal settings (toggles on Goal button click) -->
+    <div class="hydration-goal-settings" id="hydrationGoalSettings">
+      <div class="hydration-section-title">Daily Goal</div>
+      <div class="hydration-goal-row">
+        <input type="number" class="hydration-goal-input" id="hydrationGoalInput" min="8" max="512" step="8" value="64" />
+        <span style="font-size:0.82rem;color:var(--text-dim)">oz</span>
+        <button class="hydration-goal-save" id="hydrationGoalSave">Save</button>
+      </div>
+    </div>
+
+    <!-- Today's intake card -->
+    <div class="hydration-card">
+      <div class="hydration-card-header">
+        <div class="hydration-card-title">&#128167; Today's intake</div>
+        <div>
+          <div class="hydration-card-oz" id="hydrationTodayOz">0 oz</div>
+          <div class="hydration-card-goal" id="hydrationGoalLabel">of 64 oz goal</div>
+        </div>
+      </div>
+      <div class="hydration-fill-track">
+        <div class="hydration-fill-bar" id="hydrationFillBar"></div>
+      </div>
+      <div class="hydration-fill-label" id="hydrationFillLabel"></div>
+      <div class="hydration-quick-btns">
+        <button class="hydration-quick-btn" data-oz="8">+8 oz</button>
+        <button class="hydration-quick-btn" data-oz="12">+12 oz</button>
+        <button class="hydration-quick-btn" data-oz="16">+16 oz</button>
+        <button class="hydration-quick-btn" data-oz="20">+20 oz</button>
+        <button class="hydration-quick-btn hydration-custom-trigger" id="hydrationCustomBtn">custom</button>
+      </div>
+      <div class="hydration-custom-row" id="hydrationCustomRow">
+        <input type="number" class="hydration-custom-input" id="hydrationCustomOz" min="1" max="256" placeholder="oz" />
+        <button class="hydration-custom-confirm" id="hydrationCustomConfirm">Log</button>
+      </div>
+    </div>
+
+    <!-- Streak card -->
+    <div class="hydration-card">
+      <div class="hydration-section-title">Current Streak</div>
+      <div class="hydration-streak-row">
+        <div>
+          <div class="hydration-streak-num" id="hydrationStreakNum">0</div>
+          <div class="hydration-streak-lbl">days in a row</div>
+        </div>
+        <div class="hydration-best-badge">
+          <div class="hydration-best-num" id="hydrationBestNum">0</div>
+          <div class="hydration-best-lbl">best streak</div>
+        </div>
+      </div>
+      <div class="hydration-dots" id="hydrationDots"></div>
+      <div class="hydration-dot-legend">&#10003; met goal &nbsp;~ partial &nbsp;&middot; in progress</div>
+    </div>
+
+    <!-- History card -->
+    <div class="hydration-card">
+      <div class="hydration-history-header">
+        <div class="hydration-section-title">Recent History</div>
+        <button class="hydration-view-all" id="hydrationViewAll">View all &#8594;</button>
+      </div>
+      <div id="hydrationHistory"></div>
+    </div>
   </div>
 </div><!-- /.habits-sidebar -->
 
@@ -2486,6 +2663,16 @@
     return Array.from({ length: 7 }, (_, i) => dateStr(addDays(end, i - 6)));
   }
 
+  function isScheduledDay(habit, ds) {
+    const d = new Date(ds + 'T12:00:00');
+    const recur = habit.recur || 'daily';
+    if (recur === 'daily')   return true;
+    if (recur === 'weekly')  return habit.weeklyDay  != null ? d.getDay()  === habit.weeklyDay  : true;
+    if (recur === 'monthly') return habit.monthlyDay != null ? d.getDate() === habit.monthlyDay : true;
+    if (recur === 'custom')  return (habit.customDays || []).includes(d.getDay());
+    return true;
+  }
+
   function streakLabel(recur) {
     return recur === 'weekly' ? 'week streak' : recur === 'monthly' ? 'mo streak' : 'day streak';
   }
@@ -2522,11 +2709,16 @@
     function getDotsHtml() {
       const days = get7Days(weekOffset);
       return days.map(d => {
-        const filled = compSet.has(d);
-        const isToday = d === todayStr;
-        const dayObj = new Date(d + 'T12:00:00');
+        const filled    = compSet.has(d);
+        const isToday   = d === todayStr;
+        const scheduled = isScheduledDay(habit, d);
+        const dayObj    = new Date(d + 'T12:00:00');
+        let cls = 'habit-dot';
+        if (filled)          cls += ' filled';
+        else if (scheduled)  cls += ' scheduled';
+        if (isToday)         cls += ' today-ring';
         return `<div class="habit-day">
-          <div class="habit-dot${filled?' filled':''}${isToday?' today-ring':''}"></div>
+          <div class="${cls}"></div>
           <div class="habit-dot-label">${DAY_ABBR[dayObj.getDay()]}</div>
         </div>`;
       }).join('');
@@ -2579,7 +2771,7 @@
       <div class="habit-grid-wrap">
         <button class="habit-week-btn habit-week-prev">&#8249;</button>
         <div class="habit-grid">${dotsHtml}</div>
-        <button class="habit-week-btn habit-week-next" ${weekOffset >= 0 ? 'disabled' : ''}>&#8250;</button>
+        <button class="habit-week-btn habit-week-next">&#8250;</button>
       </div>
       <div class="habit-card-footer">
         <button class="btn-mark-done${isDone ? ' done-state' : ''}">
@@ -2605,15 +2797,11 @@
       weekOffset--;
       card.dataset.weekOffset = weekOffset;
       gridEl.innerHTML = getDotsHtml();
-      nextBtn.disabled = weekOffset >= 0;
     });
     nextBtn.addEventListener('click', () => {
-      if (weekOffset < 0) {
-        weekOffset++;
-        card.dataset.weekOffset = weekOffset;
-        gridEl.innerHTML = getDotsHtml();
-        nextBtn.disabled = weekOffset >= 0;
-      }
+      weekOffset++;
+      card.dataset.weekOffset = weekOffset;
+      gridEl.innerHTML = getDotsHtml();
     });
 
     listEl.appendChild(card);
@@ -3140,6 +3328,7 @@
         todos_personal: JSON.parse(localStorage.getItem('todos_personal') || '[]'),
         habits_v1:      JSON.parse(localStorage.getItem('habits_v1')      || '[]'),
         notif_settings: JSON.parse(localStorage.getItem('notif_settings') || 'null'),
+        hydration_data: JSON.parse(localStorage.getItem('hydration_data') || 'null'),
         updated: new Date().toISOString()
       };
     }
@@ -3196,6 +3385,7 @@
           if (cloud.todos_personal) localStorage.setItem('todos_personal', JSON.stringify(cloud.todos_personal));
           if (cloud.habits_v1)      localStorage.setItem('habits_v1',      JSON.stringify(cloud.habits_v1));
           if (cloud.notif_settings) localStorage.setItem('notif_settings', JSON.stringify(cloud.notif_settings));
+          if (cloud.hydration_data) localStorage.setItem('hydration_data', JSON.stringify(cloud.hydration_data));
           // Reload in-memory state and re-render
           data.work     = loadTab('work');
           data.personal = loadTab('personal');
@@ -3378,6 +3568,183 @@
         }
       } catch(e) { console.warn('GCal push failed', e); }
     };
+  })();
+
+  /* ── Habits / Hydration tab switcher ── */
+  (function() {
+    const sidebar = document.querySelector('.habits-sidebar');
+    document.getElementById('habitsTabBtn').addEventListener('click', () => {
+      document.getElementById('habitsTabBtn').classList.add('active');
+      document.getElementById('hydrationTabBtn').classList.remove('active');
+      sidebar.classList.remove('hydration-mode');
+    });
+    document.getElementById('hydrationTabBtn').addEventListener('click', () => {
+      document.getElementById('hydrationTabBtn').classList.add('active');
+      document.getElementById('habitsTabBtn').classList.remove('active');
+      sidebar.classList.add('hydration-mode');
+      if (window.renderHydration) window.renderHydration();
+    });
+    document.getElementById('hydrationGoalBtn').addEventListener('click', () => {
+      document.getElementById('hydrationGoalSettings').classList.toggle('visible');
+    });
+  })();
+
+  /* ── Hydration tracker ── */
+  (function() {
+    const HYDRATION_KEY = 'hydration_data';
+
+    function loadHyd() {
+      try { return JSON.parse(localStorage.getItem(HYDRATION_KEY)) || { goal: 64, logs: {}, bestStreak: 0 }; }
+      catch { return { goal: 64, logs: {}, bestStreak: 0 }; }
+    }
+    function saveHyd() {
+      localStorage.setItem(HYDRATION_KEY, JSON.stringify(hyd));
+      if (window.scheduleDriveSave) window.scheduleDriveSave();
+    }
+
+    let hyd = loadHyd();
+    let historyExpanded = false;
+
+    function todayKey() { return new Date().toISOString().slice(0, 10); }
+    function getTodayOz() { return hyd.logs[todayKey()] || 0; }
+
+    function logWater(oz) {
+      const t = todayKey();
+      hyd.logs[t] = (hyd.logs[t] || 0) + oz;
+      const streak = calcStreak();
+      if (streak > (hyd.bestStreak || 0)) hyd.bestStreak = streak;
+      saveHyd();
+      renderHydration();
+    }
+
+    function calcStreak() {
+      const goal = hyd.goal || 64;
+      let streak = 0;
+      let d = new Date();
+      // If today not yet met, start counting from yesterday
+      if ((hyd.logs[todayKey()] || 0) < goal) d.setDate(d.getDate() - 1);
+      for (let i = 0; i < 365; i++) {
+        const ds = d.toISOString().slice(0, 10);
+        if ((hyd.logs[ds] || 0) >= goal) { streak++; d.setDate(d.getDate() - 1); }
+        else break;
+      }
+      return streak;
+    }
+
+    function renderHydration() {
+      const goal    = hyd.goal || 64;
+      const todayOz = getTodayOz();
+      const pct     = Math.min(100, Math.round((todayOz / goal) * 100));
+      const remaining = Math.max(0, goal - todayOz);
+      const cups    = Math.floor(todayOz / 8);
+      const goalCups = Math.floor(goal / 8);
+
+      document.getElementById('hydrationCount').innerHTML =
+        `<span>${cups}</span> / <span>${goalCups}</span> cups today &nbsp;&middot;&nbsp; Goal: ${goal} oz`;
+      document.getElementById('hydrationTodayOz').textContent = `${todayOz} oz`;
+      document.getElementById('hydrationGoalLabel').textContent = `of ${goal} oz goal`;
+      document.getElementById('hydrationFillBar').style.width = pct + '%';
+      document.getElementById('hydrationFillLabel').innerHTML =
+        `<span>${pct}%</span> &nbsp;&middot;&nbsp; ${remaining} oz remaining`;
+      document.getElementById('hydrationGoalInput').value = goal;
+
+      const streak = calcStreak();
+      document.getElementById('hydrationStreakNum').textContent = streak;
+      document.getElementById('hydrationBestNum').textContent = hyd.bestStreak || 0;
+
+      // 7-day dots
+      const DAY = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+      const today = todayKey();
+      const days = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(); d.setDate(d.getDate() - (6 - i));
+        return d.toISOString().slice(0, 10);
+      });
+      document.getElementById('hydrationDots').innerHTML = days.map(ds => {
+        const oz = hyd.logs[ds] || 0;
+        const dayLbl = DAY[new Date(ds + 'T12:00:00').getDay()];
+        let cls = '', inner = '';
+        if (ds === today) {
+          if (oz >= goal)  { cls = 'met';            inner = '&#10003;'; }
+          else if (oz > 0) { cls = 'today partial';  inner = '~'; }
+          else             { cls = 'today';           inner = '&middot;'; }
+        } else {
+          if (oz >= goal)  { cls = 'met';    inner = '&#10003;'; }
+          else if (oz > 0) { cls = 'partial'; inner = '~'; }
+        }
+        return `<div class="hydration-dot-wrap">
+          <div class="hydration-dot ${cls}">${inner}</div>
+          <div class="hydration-dot-lbl">${dayLbl}</div>
+        </div>`;
+      }).join('');
+
+      renderHistory(historyExpanded ? 30 : 5);
+    }
+
+    function renderHistory(days) {
+      const goal = hyd.goal || 64;
+      const fmtDate = ds => new Date(ds + 'T12:00:00')
+        .toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+      const rows = Array.from({ length: days }, (_, i) => {
+        const d = new Date(); d.setDate(d.getDate() - (i + 1));
+        return d.toISOString().slice(0, 10);
+      });
+      document.getElementById('hydrationHistory').innerHTML = rows.map(ds => {
+        const oz  = hyd.logs[ds] || 0;
+        const pct = Math.min(100, Math.round((oz / goal) * 100));
+        const met = oz >= goal;
+        return `<div class="hydration-history-row">
+          <div class="hydration-history-date">${fmtDate(ds)}</div>
+          <div class="hydration-history-track"><div class="hydration-history-fill" style="width:${pct}%"></div></div>
+          <div class="hydration-history-oz">${oz} oz</div>
+          <div class="hydration-history-icon${met ? '' : ' miss'}">${met ? '&#10003;' : '&#10007;'}</div>
+        </div>`;
+      }).join('');
+    }
+
+    // Quick log
+    document.querySelectorAll('.hydration-quick-btn[data-oz]').forEach(btn => {
+      btn.addEventListener('click', () => logWater(parseInt(btn.dataset.oz)));
+    });
+
+    // Custom log
+    document.getElementById('hydrationCustomBtn').addEventListener('click', () => {
+      document.getElementById('hydrationCustomRow').classList.toggle('visible');
+      if (document.getElementById('hydrationCustomRow').classList.contains('visible'))
+        document.getElementById('hydrationCustomOz').focus();
+    });
+    document.getElementById('hydrationCustomConfirm').addEventListener('click', () => {
+      const oz = parseInt(document.getElementById('hydrationCustomOz').value);
+      if (oz > 0) {
+        logWater(oz);
+        document.getElementById('hydrationCustomOz').value = '';
+        document.getElementById('hydrationCustomRow').classList.remove('visible');
+      }
+    });
+    document.getElementById('hydrationCustomOz').addEventListener('keydown', e => {
+      if (e.key === 'Enter') document.getElementById('hydrationCustomConfirm').click();
+    });
+
+    // Goal save
+    document.getElementById('hydrationGoalSave').addEventListener('click', () => {
+      const val = parseInt(document.getElementById('hydrationGoalInput').value);
+      if (val >= 8) {
+        hyd.goal = val;
+        saveHyd();
+        renderHydration();
+        document.getElementById('hydrationGoalSettings').classList.remove('visible');
+      }
+    });
+
+    // View all history toggle
+    document.getElementById('hydrationViewAll').addEventListener('click', () => {
+      historyExpanded = !historyExpanded;
+      document.getElementById('hydrationViewAll').textContent =
+        historyExpanded ? 'Show less' : 'View all \u2192';
+      renderHistory(historyExpanded ? 30 : 5);
+    });
+
+    window.renderHydration = renderHydration;
+    renderHydration();
   })();
 
   /* ── Mobile navigation ── */
