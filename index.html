@@ -1238,6 +1238,89 @@
       color-scheme: dark;
     }
     .form-time-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-glow); }
+
+    /* ── Notes ── */
+    .notes-toggle-btn {
+      width: 100%; margin-top: 10px; background: none;
+      border: 1.5px solid var(--border); border-radius: 8px;
+      color: var(--text-dim); cursor: pointer; font-size: 0.65rem;
+      font-weight: 600; padding: 5px 8px;
+      transition: border-color 0.2s, color 0.2s; text-align: center;
+    }
+    .notes-toggle-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .notes-panel { margin-top: 10px; }
+    .notes-panel-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .notes-panel-title { font-size: 0.72rem; font-weight: 700; color: var(--text); }
+    .notes-add-btn {
+      background: var(--accent); border: none; border-radius: 6px;
+      color: #fff; cursor: pointer; font-size: 0.62rem; font-weight: 700;
+      padding: 3px 8px;
+    }
+    .notes-add-btn:hover { opacity: 0.85; }
+    .notes-list { display: flex; flex-direction: column; gap: 6px; }
+    .note-card {
+      background: var(--surface2); border: 1.5px solid var(--border);
+      border-radius: 10px; overflow: hidden; transition: border-color 0.2s;
+    }
+    .note-card:hover { border-color: #3e3e55; }
+    .note-card.expanded { border-color: var(--accent); }
+    .note-card-mini { padding: 8px 10px; cursor: pointer; }
+    .note-card-mini-title {
+      font-size: 0.72rem; font-weight: 700; color: var(--text);
+      margin-bottom: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .note-card-mini-preview {
+      font-size: 0.62rem; color: var(--text-dim); line-height: 1.4;
+      overflow: hidden; display: -webkit-box;
+      -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+    }
+    .note-card.expanded .note-card-mini { display: none; }
+    .note-card-full { display: none; padding: 10px; }
+    .note-card.expanded .note-card-full { display: block; }
+    .note-title-input {
+      width: 100%; background: none; border: none;
+      border-bottom: 1px solid var(--border); color: var(--text);
+      font-size: 0.72rem; font-weight: 700; padding: 0 0 5px 0;
+      margin-bottom: 8px; outline: none; font-family: inherit;
+    }
+    .note-title-input::placeholder { color: var(--text-dim); }
+    .note-toolbar {
+      display: flex; gap: 3px; margin-bottom: 7px; flex-wrap: wrap;
+    }
+    .note-toolbar button {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 5px; color: var(--text-dim); cursor: pointer;
+      font-size: 0.68rem; padding: 2px 7px; transition: all 0.15s;
+      font-family: inherit;
+    }
+    .note-toolbar button:hover { border-color: var(--accent); color: var(--accent); background: var(--surface2); }
+    .note-content {
+      min-height: 72px; font-size: 0.7rem; color: var(--text);
+      outline: none; line-height: 1.65; word-break: break-word;
+    }
+    .note-content:empty::before {
+      content: attr(data-placeholder); color: var(--text-dim); pointer-events: none;
+    }
+    .note-card-footer {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--border);
+    }
+    .note-minimize-btn {
+      background: none; border: none; color: var(--text-dim);
+      cursor: pointer; font-size: 0.62rem; padding: 0; font-family: inherit;
+    }
+    .note-minimize-btn:hover { color: var(--text); }
+    .note-delete-btn {
+      background: none; border: none; color: var(--danger);
+      cursor: pointer; font-size: 0.62rem; padding: 0; font-family: inherit;
+    }
+    .note-delete-btn:hover { opacity: 0.7; }
+    .notes-empty {
+      font-size: 0.65rem; color: var(--text-dim); text-align: center; padding: 14px 0;
+    }
   </style>
 </head>
 <body>
@@ -1334,6 +1417,14 @@
   <div class="gcal-day-panel" id="gcalDayPanel">
     <div class="gcal-day-panel-title" id="gcalDayTitle"></div>
     <div id="gcalDayItems"></div>
+  </div>
+  <button class="notes-toggle-btn" id="notesToggleBtn">📝 Notes</button>
+  <div class="notes-panel" id="notesPanel" style="display:none">
+    <div class="notes-panel-header">
+      <span class="notes-panel-title">📝 Notes</span>
+      <button class="notes-add-btn" id="notesAddBtn">+ New</button>
+    </div>
+    <div class="notes-list" id="notesList"></div>
   </div>
 </div><!-- /.gcal-sidebar -->
 
@@ -3345,6 +3436,7 @@
         todos_work:     stripLocalFields(JSON.parse(localStorage.getItem('todos_work')     || '[]')),
         todos_personal: stripLocalFields(JSON.parse(localStorage.getItem('todos_personal') || '[]')),
         habits_v1:      JSON.parse(localStorage.getItem('habits_v1')      || '[]'),
+        notes_v1:       JSON.parse(localStorage.getItem('notes_v1')       || '[]'),
         notif_settings: JSON.parse(localStorage.getItem('notif_settings') || 'null'),
         hydration_data: JSON.parse(localStorage.getItem('hydration_data') || 'null'),
         updated: new Date().toISOString()
@@ -3436,6 +3528,17 @@
       if (cloud.habits_v1)      { localStorage.setItem('habits_v1',      JSON.stringify(cloud.habits_v1));      habits = loadHabits(); changed = true; }
       if (cloud.notif_settings) { localStorage.setItem('notif_settings', JSON.stringify(cloud.notif_settings)); }
       if (cloud.hydration_data) { localStorage.setItem('hydration_data', JSON.stringify(cloud.hydration_data)); }
+      if (cloud.notes_v1) {
+        const localNotes = JSON.parse(localStorage.getItem('notes_v1') || '[]');
+        const byId = {};
+        localNotes.forEach(n => byId[n.id] = n);
+        cloud.notes_v1.forEach(n => {
+          if (!byId[n.id] || (n.updatedAt || 0) > (byId[n.id].updatedAt || 0)) byId[n.id] = n;
+        });
+        const mergedNotes = Object.values(byId).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        localStorage.setItem('notes_v1', JSON.stringify(mergedNotes));
+        if (window.notesSync) window.notesSync(mergedNotes);
+      }
       if (changed) { render(); renderHabits(); }
     }
 
@@ -4016,6 +4119,153 @@
         }
       });
       tokenClient.requestAccessToken();
+    });
+  })();
+</script>
+<script>
+  // ── Notes ──
+  (function() {
+    const NOTES_KEY = 'notes_v1';
+    let notes = [];
+    try { notes = JSON.parse(localStorage.getItem(NOTES_KEY)) || []; } catch {}
+
+    function saveNotes() {
+      localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
+      if (window.scheduleDriveSave) window.scheduleDriveSave();
+    }
+
+    function noteUid() { return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+    function getTextPreview(html) {
+      const d = document.createElement('div');
+      d.innerHTML = html;
+      return (d.textContent || d.innerText || '').replace(/\s+/g, ' ').trim().slice(0, 120);
+    }
+
+    function saveCard(card, id) {
+      const n = notes.find(n => n.id === id);
+      if (!n) return;
+      n.title = card.querySelector('.note-title-input').value;
+      n.content = card.querySelector('.note-content').innerHTML;
+      n.updatedAt = Date.now();
+      saveNotes();
+      card.querySelector('.note-card-mini-title').textContent = n.title || 'Untitled';
+      const preview = getTextPreview(n.content);
+      card.querySelector('.note-card-mini-preview').innerHTML = preview
+        ? preview.replace(/</g, '&lt;')
+        : '<span style="opacity:0.4">No content</span>';
+    }
+
+    function buildCard(note) {
+      const card = document.createElement('div');
+      card.className = 'note-card';
+      card.dataset.id = note.id;
+      const preview = getTextPreview(note.content || '');
+
+      card.innerHTML = `
+        <div class="note-card-mini">
+          <div class="note-card-mini-title">${(note.title || 'Untitled').replace(/</g,'&lt;')}</div>
+          <div class="note-card-mini-preview">${preview ? preview.replace(/</g,'&lt;') : '<span style="opacity:0.4">No content</span>'}</div>
+        </div>
+        <div class="note-card-full">
+          <input class="note-title-input" value="${(note.title || '').replace(/"/g,'&quot;').replace(/</g,'&lt;')}" placeholder="Title..." />
+          <div class="note-toolbar">
+            <button data-cmd="bold"><b>B</b></button>
+            <button data-cmd="italic"><i>I</i></button>
+            <button data-cmd="underline"><u>U</u></button>
+            <button data-insert="• ">• Bullet</button>
+            <button data-insert="– ">– Dash</button>
+          </div>
+          <div class="note-content" contenteditable="true" data-placeholder="Start typing...">${note.content || ''}</div>
+          <div class="note-card-footer">
+            <button class="note-minimize-btn">▲ Minimize</button>
+            <button class="note-delete-btn">Delete</button>
+          </div>
+        </div>
+      `;
+
+      card.querySelector('.note-card-mini').addEventListener('click', () => {
+        card.classList.add('expanded');
+        card.querySelector('.note-content').focus();
+      });
+
+      card.querySelector('.note-minimize-btn').addEventListener('click', () => {
+        saveCard(card, note.id);
+        card.classList.remove('expanded');
+      });
+
+      card.querySelector('.note-delete-btn').addEventListener('click', () => {
+        notes = notes.filter(n => n.id !== note.id);
+        saveNotes();
+        card.remove();
+        if (!notes.length) document.getElementById('notesList').innerHTML = '<div class="notes-empty">No notes yet. Hit + New to start.</div>';
+      });
+
+      card.querySelector('.note-title-input').addEventListener('input', function() {
+        const n = notes.find(n => n.id === note.id);
+        if (n) { n.title = this.value; n.updatedAt = Date.now(); }
+      });
+      card.querySelector('.note-title-input').addEventListener('blur', () => saveCard(card, note.id));
+
+      card.querySelectorAll('.note-toolbar button[data-cmd]').forEach(btn => {
+        btn.addEventListener('mousedown', e => {
+          e.preventDefault(); // keep focus in contenteditable
+          document.execCommand(btn.dataset.cmd, false, null);
+        });
+      });
+
+      card.querySelectorAll('.note-toolbar button[data-insert]').forEach(btn => {
+        btn.addEventListener('mousedown', e => {
+          e.preventDefault();
+          card.querySelector('.note-content').focus();
+          document.execCommand('insertText', false, btn.dataset.insert);
+        });
+      });
+
+      card.querySelector('.note-content').addEventListener('blur', () => saveCard(card, note.id));
+
+      return card;
+    }
+
+    function renderNotes() {
+      const list = document.getElementById('notesList');
+      if (!list) return;
+      list.innerHTML = '';
+      if (!notes.length) {
+        list.innerHTML = '<div class="notes-empty">No notes yet. Hit + New to start.</div>';
+        return;
+      }
+      notes.forEach(note => list.appendChild(buildCard(note)));
+    }
+
+    // Called by Drive sync when cloud has newer notes data
+    window.notesSync = function(merged) {
+      notes = merged;
+      const panel = document.getElementById('notesPanel');
+      if (panel && panel.style.display !== 'none') renderNotes();
+    };
+
+    document.getElementById('notesToggleBtn').addEventListener('click', () => {
+      const panel = document.getElementById('notesPanel');
+      const btn = document.getElementById('notesToggleBtn');
+      const isOpen = panel.style.display !== 'none';
+      panel.style.display = isOpen ? 'none' : 'block';
+      btn.textContent = isOpen ? '📝 Notes' : '▲ Notes';
+      if (!isOpen) renderNotes();
+    });
+
+    document.getElementById('notesAddBtn').addEventListener('click', () => {
+      const note = { id: noteUid(), title: '', content: '', createdAt: Date.now(), updatedAt: Date.now() };
+      notes.unshift(note);
+      saveNotes();
+      const list = document.getElementById('notesList');
+      list.innerHTML = '';
+      notes.forEach(n => list.appendChild(buildCard(n)));
+      const firstCard = list.firstElementChild;
+      if (firstCard) {
+        firstCard.classList.add('expanded');
+        firstCard.querySelector('.note-title-input').focus();
+      }
     });
   })();
 </script>
