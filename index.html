@@ -2177,7 +2177,7 @@
   function addTodo(text, priority, due, recur, reminders) {
     text = text.trim();
     if (!text) return;
-    const todo = { id: uid(), text, done: false, priority, due: due || null, recur: recur || null, reminders: reminders || [], notifiedWindows: [], created: Date.now() };
+    const todo = { id: uid(), text, done: false, priority, due: due || null, recur: recur || null, reminders: reminders || [], notifiedWindows: [], created: Date.now(), updatedAt: Date.now() };
     todos().unshift(todo);
     save(); render();
     if (todo.due && window.gcalPushTodo) window.gcalPushTodo(todo, null);
@@ -2241,11 +2241,13 @@
 
     if (t.recur && !t.done) {
       t.due = nextDue(t.due, t.recur);
+      t.updatedAt = Date.now();
       playDing();
       afterAnim(true);
     } else {
       const willDone = !t.done;
       t.done = willDone;
+      t.updatedAt = Date.now();
       if (willDone) playDing();
       afterAnim(willDone);
     }
@@ -2283,6 +2285,7 @@
         t.recur     = recur || null;
         t.reminders = getItemReminders(el);
         t.notifiedWindows = []; // reset so new reminders fire fresh
+        t.updatedAt = Date.now();
         if (t.due && window.gcalPushTodo) window.gcalPushTodo(t, null);
       }
       save();
@@ -3334,10 +3337,13 @@
     }
 
     // ── Google Drive Sync ──
+    function stripLocalFields(todos) {
+      return todos.map(({ notifiedWindows, ...t }) => t);
+    }
     function getDrivePayload() {
       return {
-        todos_work:     JSON.parse(localStorage.getItem('todos_work')     || '[]'),
-        todos_personal: JSON.parse(localStorage.getItem('todos_personal') || '[]'),
+        todos_work:     stripLocalFields(JSON.parse(localStorage.getItem('todos_work')     || '[]')),
+        todos_personal: stripLocalFields(JSON.parse(localStorage.getItem('todos_personal') || '[]')),
         habits_v1:      JSON.parse(localStorage.getItem('habits_v1')      || '[]'),
         notif_settings: JSON.parse(localStorage.getItem('notif_settings') || 'null'),
         hydration_data: JSON.parse(localStorage.getItem('hydration_data') || 'null'),
@@ -3372,6 +3378,67 @@
       }, 2000);
     };
 
+    async function drivePull() {
+      if (!gcalToken || !driveFileId) return;
+      try {
+        const dl = await fetch(
+          `https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,
+          { headers: { Authorization: `Bearer ${gcalToken}` } }
+        );
+        if (!dl.ok) return;
+        const cloud = await dl.json();
+        await applyCloudData(cloud);
+        setSyncStatus('☁ Synced ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
+      } catch(e) { console.warn('Drive pull failed', e); }
+    }
+    setInterval(drivePull, 60000);
+
+    // Merge two todo arrays by id, taking the item with the higher updatedAt.
+    // Local notifiedWindows is always preserved (it's device-local state).
+    function mergeTodos(local, cloud) {
+      const byId = {};
+      local.forEach(t => byId[t.id] = t);
+      cloud.forEach(t => {
+        if (!byId[t.id]) {
+          // New item from cloud — add it, initialise local fields
+          byId[t.id] = { notifiedWindows: [], ...t };
+        } else {
+          const localTs = byId[t.id].updatedAt || byId[t.id].created || 0;
+          const cloudTs = t.updatedAt || t.created || 0;
+          if (cloudTs > localTs) {
+            // Cloud version is newer — apply it, but keep local notifiedWindows
+            byId[t.id] = { notifiedWindows: byId[t.id].notifiedWindows || [], ...t };
+          }
+          // else local version is newer or equal — keep as-is
+        }
+      });
+      // Preserve cloud ordering, then append any local-only items at the front
+      const cloudIds = new Set(cloud.map(t => t.id));
+      const localOnly = local.filter(t => !cloudIds.has(t.id));
+      const merged = cloud.map(t => byId[t.id]).concat(localOnly.map(t => byId[t.id]));
+      return merged;
+    }
+
+    async function applyCloudData(cloud) {
+      let changed = false;
+      if (cloud.todos_work) {
+        const merged = mergeTodos(data.work, cloud.todos_work);
+        data.work = merged;
+        localStorage.setItem('todos_work', JSON.stringify(merged));
+        changed = true;
+      }
+      if (cloud.todos_personal) {
+        const merged = mergeTodos(data.personal, cloud.todos_personal);
+        data.personal = merged;
+        localStorage.setItem('todos_personal', JSON.stringify(merged));
+        changed = true;
+      }
+      if (cloud.habits_v1)      { localStorage.setItem('habits_v1',      JSON.stringify(cloud.habits_v1));      habits = loadHabits(); changed = true; }
+      if (cloud.notif_settings) { localStorage.setItem('notif_settings', JSON.stringify(cloud.notif_settings)); }
+      if (cloud.hydration_data) { localStorage.setItem('hydration_data', JSON.stringify(cloud.hydration_data)); }
+      if (changed) { render(); renderHabits(); }
+    }
+
     async function driveInit() {
       if (!gcalToken) return;
       setSyncStatus('☁ Syncing...');
@@ -3386,24 +3453,13 @@
 
         if (list.files && list.files.length > 0) {
           driveFileId = list.files[0].id;
-          // Download and apply cloud data
           const dl = await fetch(
             `https://www.googleapis.com/drive/v3/files/${driveFileId}?alt=media`,
             { headers: { Authorization: `Bearer ${gcalToken}` } }
           );
           if (!dl.ok) { setSyncStatus('☁ Sync error (' + dl.status + ')'); return; }
           const cloud = await dl.json();
-          if (cloud.todos_work)     localStorage.setItem('todos_work',     JSON.stringify(cloud.todos_work));
-          if (cloud.todos_personal) localStorage.setItem('todos_personal', JSON.stringify(cloud.todos_personal));
-          if (cloud.habits_v1)      localStorage.setItem('habits_v1',      JSON.stringify(cloud.habits_v1));
-          if (cloud.notif_settings) localStorage.setItem('notif_settings', JSON.stringify(cloud.notif_settings));
-          if (cloud.hydration_data) localStorage.setItem('hydration_data', JSON.stringify(cloud.hydration_data));
-          // Reload in-memory state and re-render
-          data.work     = loadTab('work');
-          data.personal = loadTab('personal');
-          habits        = loadHabits();
-          render();
-          renderHabits();
+          await applyCloudData(cloud);
           setSyncStatus('☁ Synced ' + new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}));
         } else {
           // First time: upload current local data to Drive
