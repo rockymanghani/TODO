@@ -154,6 +154,63 @@
     .gcal-connect-btn:hover { border-color: #00c4a0; color: #00c4a0; }
     .gcal-connect-btn.connected { border-color: var(--done); color: var(--done); }
     .gcal-connect-btn.connected:hover { border-color: var(--danger); color: var(--danger); }
+
+    /* ── Undo toast ── */
+    #undoToast {
+      position: fixed; bottom: 24px; left: 50%;
+      transform: translateX(-50%) translateY(80px);
+      background: #2a2a3a; border: 1.5px solid #444; border-radius: 10px;
+      padding: 10px 16px; display: flex; align-items: center; gap: 12px;
+      font-size: 0.82rem; color: var(--text); box-shadow: 0 4px 24px rgba(0,0,0,0.55);
+      z-index: 9000; opacity: 0; pointer-events: none; white-space: nowrap;
+      transition: transform 0.22s ease, opacity 0.22s ease;
+    }
+    #undoToast.visible { transform: translateX(-50%) translateY(0); opacity: 1; pointer-events: auto; }
+    #undoToast .undo-btn {
+      background: var(--accent); border: none; border-radius: 6px; color: #fff;
+      cursor: pointer; font-size: 0.78rem; font-weight: 700; padding: 4px 10px;
+      transition: opacity 0.15s;
+    }
+    #undoToast .undo-btn:hover { opacity: 0.82; }
+
+    /* ── Habit heatmap ── */
+    .habit-heatmap-wrap { overflow-x: auto; margin-bottom: 8px; }
+    .habit-heatmap-grid { display: flex; gap: 3px; }
+    .heatmap-col { display: flex; flex-direction: column; gap: 2px; }
+    .heatmap-month-label { font-size: 0.48rem; color: var(--text-dim); height: 10px; font-weight: 600; overflow: hidden; }
+    .heatmap-cell {
+      width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0;
+      background: var(--surface2); border: 1px solid var(--border);
+      transition: opacity 0.15s;
+    }
+    .heatmap-cell.filled { background: var(--done); border-color: var(--done); }
+    .heatmap-cell.faded  { opacity: 0.22; }
+
+    /* ── Today focus ── */
+    .today-focus-btn {
+      background: none; border: 1.5px solid var(--border); border-radius: 8px;
+      color: var(--text-dim); cursor: pointer; font-size: 0.75rem; font-weight: 600;
+      padding: 5px 11px; transition: border-color 0.2s, color 0.2s, background 0.2s;
+      white-space: nowrap; margin-left: 6px;
+    }
+    .today-focus-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .today-focus-btn.active { background: rgba(124,111,255,0.12); border-color: var(--accent); color: var(--accent); }
+    .item-tab-badge {
+      display: inline-block; font-size: 0.6rem; font-weight: 700;
+      padding: 1px 5px; border-radius: 4px; margin-left: 5px;
+      background: rgba(124,111,255,0.15); color: var(--accent); vertical-align: middle;
+    }
+    .item-tab-badge.personal { background: rgba(0,196,160,0.15); color: #00c4a0; }
+    #driveSyncStatus { display:flex; align-items:center; justify-content:center; gap:5px; }
+    #syncRefreshBtn {
+      display:inline-flex; align-items:center; justify-content:center;
+      background:none; border:1px solid #444; border-radius:4px;
+      color:#888; cursor:pointer; padding:1px 4px; font-size:0.75rem;
+      line-height:1; transition:border-color 0.2s, color 0.2s;
+    }
+    #syncRefreshBtn:hover { border-color:#00c4a0; color:#00c4a0; }
+    #syncRefreshBtn.spinning svg { animation: sync-spin 0.8s linear infinite; }
+    @keyframes sync-spin { from { transform:rotate(0deg); } to { transform:rotate(360deg); } }
     .gcal-weekdays {
       display: grid; grid-template-columns: repeat(7, 1fr);
       margin-bottom: 4px;
@@ -1158,6 +1215,9 @@
     .habit-dot.scheduled  { background: rgba(74,158,255,0.18); border-color: #4a9eff; }
     .habit-dot.today-ring { outline: 2px solid var(--accent); outline-offset: 2px; }
     .habit-dot-label { font-size: 0.55rem; color: var(--text-dim); font-weight: 600; }
+    .habit-day.clickable { cursor: pointer; }
+    .habit-day.clickable:hover .habit-dot:not(.filled) { border-color: var(--done); background: rgba(74,222,128,0.15); }
+    .habit-day.clickable:hover .habit-dot.filled { opacity: 0.6; }
 
     /* Card footer */
     .habit-card-footer {
@@ -1444,6 +1504,7 @@
 
   <div class="heading-row">
     <h1 id="heading">Work Todos</h1>
+    <button class="today-focus-btn" id="todayFocusBtn">&#9788; Today</button>
     <button class="notif-btn" id="notifBtn">
       <span class="notif-dot"></span> Notifications
     </button>
@@ -1812,6 +1873,9 @@
   let filterPriority = '';
   let filterDue      = '';
   let dragSrc        = null;
+  let focusToday     = false;
+  let _undoTimer     = null;
+  let _undoAction    = null;
 
   function loadTab(tab) {
     try { return JSON.parse(localStorage.getItem(KEYS[tab])) || []; } catch { return []; }
@@ -2062,6 +2126,16 @@
 
   /* ── Render ── */
   function getVisible() {
+    if (focusToday) {
+      const end = new Date(); end.setHours(23, 59, 59, 999);
+      const combined = [];
+      ['work', 'personal'].forEach(tab => {
+        data[tab]
+          .filter(t => !t.done && t.due && t.due <= end.getTime())
+          .forEach(t => combined.push({ ...t, _tab: tab }));
+      });
+      return combined.sort((a, b) => (a.due || 0) - (b.due || 0));
+    }
     let list = todos();
 
     // Status
@@ -2099,7 +2173,8 @@
     ['work','personal'].forEach(tab => {
       document.getElementById('badge-' + tab).textContent = data[tab].filter(t => !t.done).length;
     });
-    document.getElementById('heading').textContent = activeTab === 'work' ? 'Work Todos' : 'Personal Todos';
+    document.getElementById('heading').textContent = focusToday ? "Today's Focus"
+      : activeTab === 'work' ? 'Work Todos' : 'Personal Todos';
 
     const total     = todos().length;
     const doneCount = todos().filter(t => t.done).length;
@@ -2130,13 +2205,15 @@
       const el = document.createElement('div');
       el.className = cls;
       el.dataset.id = todo.id;
-      el.draggable  = true;
+      el.draggable  = !focusToday;
 
       const dueBadge   = todo.due ? `<span class="due-label ${dueClass(todo.due, todo.done)}">${fmtDue(todo.due)}</span>` : '';
       const recurBadge = todo.recur ? `<span class="recur-badge">&#8635; ${RECUR_LABELS[todo.recur]}</span>` : '';
       const remindBadge = (todo.reminders && todo.reminders.length)
         ? `<span class="remind-badge">&#128276; ${todo.reminders.map(m => m<60?`${m}m`:m<1440?`${m/60}h`:`${m/1440}d`).join(', ')}</span>`
         : '';
+      const tabBadge = todo._tab
+        ? `<span class="item-tab-badge${todo._tab==='personal'?' personal':''}">${todo._tab==='work'?'Work':'Personal'}</span>` : '';
 
       // Build edit-mode remind chips
       const PRESET_MINS = [5, 60, 480, 1440];
@@ -2181,7 +2258,7 @@
             <div class="remind-chips">${remindChipsHtml}</div>
           </div>
           <div class="item-meta">
-            ${dueBadge}${recurBadge}${remindBadge}
+            ${dueBadge}${recurBadge}${remindBadge}${tabBadge}
             <span>Added ${fmtDate(todo.created)}</span>
           </div>
         </div>
@@ -2213,8 +2290,15 @@
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); dueTrig.click(); }
       });
 
+      // Tab-aware action helpers (for Today focus mode where _tab may be set)
+      const _tab = todo._tab;
+      const doToggle = () => _tab ? withTab(_tab, () => toggle(todo.id)) : toggle(todo.id);
+      const doDelete = () => _tab ? withTab(_tab, () => deleteTodo(todo.id)) : deleteTodo(todo.id);
+      const doCommit = () => _tab ? withTab(_tab, () => commitEdit(el, todo.id, () => editDueTs))
+                                  : commitEdit(el, todo.id, () => editDueTs);
+
       // Toggle done / advance recurring
-      el.querySelector('.check').addEventListener('click', () => toggle(todo.id));
+      el.querySelector('.check').addEventListener('click', doToggle);
       el.querySelector('.item-text').addEventListener('dblclick', () => startEdit(el));
 
       // Edit button
@@ -2225,24 +2309,50 @@
       // Text edit keydown
       const editInput = el.querySelector('.item-edit');
       editInput.addEventListener('keydown', e => {
-        if (e.key === 'Enter')  commitEdit(el, todo.id, () => editDueTs);
+        if (e.key === 'Enter')  doCommit();
         if (e.key === 'Escape') cancelEdit(el);
       });
       editInput.addEventListener('blur', () => {
         // Small delay so picker click doesn't trigger a premature commit
         setTimeout(() => {
-          if (el.classList.contains('editing') && !cal.open) commitEdit(el, todo.id, () => editDueTs);
+          if (el.classList.contains('editing') && !cal.open) doCommit();
         }, 200);
       });
 
       // Delete
-      el.querySelector('.btn-delete').addEventListener('click', () => deleteTodo(todo.id));
+      el.querySelector('.btn-delete').addEventListener('click', doDelete);
 
-      // Drag
-      el.addEventListener('dragstart', onDragStart);
-      el.addEventListener('dragover',  onDragOver);
-      el.addEventListener('drop',      onDrop);
-      el.addEventListener('dragend',   onDragEnd);
+      // Drag (disabled in today focus mode)
+      if (!focusToday) {
+        el.addEventListener('dragstart', onDragStart);
+        el.addEventListener('dragover',  onDragOver);
+        el.addEventListener('drop',      onDrop);
+        el.addEventListener('dragend',   onDragEnd);
+      }
+
+      // Swipe gestures (mobile)
+      let _sx = 0, _sy = 0, _swiped = false;
+      el.addEventListener('touchstart', e => {
+        _sx = e.touches[0].clientX; _sy = e.touches[0].clientY; _swiped = false;
+      }, { passive: true });
+      el.addEventListener('touchmove', e => {
+        const dx = e.touches[0].clientX - _sx;
+        const dy = e.touches[0].clientY - _sy;
+        if (Math.abs(dy) > Math.abs(dx)) return;
+        if (Math.abs(dx) > 8) {
+          _swiped = true;
+          el.style.transition = 'none';
+          el.style.transform = `translateX(${Math.sign(dx) * Math.min(Math.abs(dx) * 0.45, 44)}px)`;
+        }
+      }, { passive: true });
+      el.addEventListener('touchend', e => {
+        const dx = e.changedTouches[0].clientX - _sx;
+        el.style.transition = 'transform 0.2s ease';
+        el.style.transform = '';
+        if (!_swiped || Math.abs(dx) < 52) return;
+        if (dx > 0 && !todo.done) doToggle();
+        else if (dx < 0)          doDelete();
+      }, { passive: true });
 
       listEl.appendChild(el);
     });
@@ -2331,20 +2441,47 @@
     };
 
     if (t.recur && !t.done) {
+      const oldDue = t.due;
       t.due = nextDue(t.due, t.recur);
       t.updatedAt = Date.now();
       playDing();
       afterAnim(true);
+      showUndoToast(`"${t.text.slice(0,28)}" advanced`, () => {
+        const found = todos().find(x => x.id === id);
+        if (found) { found.due = oldDue; found.updatedAt = Date.now(); save(); render(); }
+      });
     } else {
       const willDone = !t.done;
       t.done = willDone;
       t.updatedAt = Date.now();
-      if (willDone) playDing();
-      afterAnim(willDone);
+      if (willDone) {
+        playDing();
+        afterAnim(true);
+        showUndoToast(`Completed "${t.text.slice(0,28)}"`, () => {
+          const found = todos().find(x => x.id === id);
+          if (found) { found.done = false; found.updatedAt = Date.now(); save(); render(); }
+        });
+      } else {
+        afterAnim(false);
+      }
     }
   }
 
-  function deleteTodo(id) { setTodos(todos().filter(t => t.id !== id)); save(); render(); }
+  function deleteTodo(id) {
+    const tab  = activeTab;
+    const list = todos().slice();
+    const idx  = list.findIndex(t => t.id === id);
+    if (idx === -1) return;
+    const removed = list[idx];
+    setTodos(list.filter(t => t.id !== id));
+    save(); render();
+    showUndoToast(`Deleted "${removed.text.slice(0, 30)}"`, () => {
+      data[tab].splice(Math.min(idx, data[tab].length), 0, removed);
+      localStorage.setItem(KEYS[tab], JSON.stringify(data[tab]));
+      if (window.scheduleDriveSave) window.scheduleDriveSave();
+      render();
+    });
+  }
 
   function startEdit(el) {
     el.classList.add('editing');
@@ -2387,6 +2524,127 @@
 
   function cancelEdit(el) { el.classList.remove('editing'); render(); }
 
+  /* ── Undo toast ── */
+  function showUndoToast(msg, undoFn) {
+    clearTimeout(_undoTimer);
+    _undoAction = undoFn;
+    let toast = document.getElementById('undoToast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'undoToast';
+      toast.innerHTML = '<span id="undoMsg"></span><button class="undo-btn">Undo</button>';
+      document.body.appendChild(toast);
+      toast.querySelector('.undo-btn').addEventListener('click', () => {
+        if (_undoAction) { _undoAction(); _undoAction = null; }
+        clearTimeout(_undoTimer);
+        toast.classList.remove('visible');
+      });
+    }
+    document.getElementById('undoMsg').textContent = msg + '  ';
+    toast.classList.add('visible');
+    _undoTimer = setTimeout(() => { toast.classList.remove('visible'); _undoAction = null; }, 5000);
+  }
+
+  /* ── Tab-context helper (used by Today focus) ── */
+  function withTab(tab, fn) {
+    const prev = activeTab; activeTab = tab; fn(); activeTab = prev;
+  }
+
+  /* ── Natural language date parsing ── */
+  function _daysToWeekday(target) {
+    const diff = (target - new Date().getDay() + 7) % 7;
+    return diff === 0 ? 7 : diff;
+  }
+  // Matches: "at 1400", "at 0900", "at 14:00", "at 3pm", "at 3:30pm", "at 10:30 am", "at 9"
+  // Tries colon-format first, then 4-digit military, then bare 1-2 digit hour
+  const _TIME_RE = /\bat\s+(\d{1,2}:\d{2}|\d{4}|\d{1,2})\s*(am|pm)?(?=[\s,.]|$)/i;
+
+  function _parseTime(text) {
+    const m = text.match(_TIME_RE);
+    if (!m) return null;
+    const raw  = m[1];
+    const ampm = m[2]?.toLowerCase();
+    let hour, min;
+
+    if (raw.includes(':')) {
+      // HH:MM [am/pm]
+      [hour, min] = raw.split(':').map(Number);
+    } else if (raw.length === 4) {
+      // HHMM military — no am/pm allowed
+      hour = parseInt(raw.slice(0, 2));
+      min  = parseInt(raw.slice(2));
+    } else {
+      // bare H or HH [am/pm]
+      hour = parseInt(raw);
+      min  = 0;
+    }
+
+    if (hour > 23 || min > 59) return null; // invalid, ignore
+
+    if      (ampm === 'pm' && hour < 12) hour += 12;
+    else if (ampm === 'am' && hour === 12) hour = 0;
+    else if (!ampm && raw.length < 4 && hour < 8) hour += 12; // bare "at 3" → 3 pm
+
+    return { hour, min, pattern: m[0] };
+  }
+
+  function parseNaturalDate(text) {
+    const patterns = [
+      [/\bnext week\b/i,  () => addDays(new Date(), 7)],
+      [/\btomorrow\b/i,   () => addDays(new Date(), 1)],
+      [/\btoday\b/i,      () => new Date()],
+      [/\bmonday\b/i,     () => addDays(new Date(), _daysToWeekday(1))],
+      [/\btuesday\b/i,    () => addDays(new Date(), _daysToWeekday(2))],
+      [/\bwednesday\b/i,  () => addDays(new Date(), _daysToWeekday(3))],
+      [/\bthursday\b/i,   () => addDays(new Date(), _daysToWeekday(4))],
+      [/\bfriday\b/i,     () => addDays(new Date(), _daysToWeekday(5))],
+      [/\bsaturday\b/i,   () => addDays(new Date(), _daysToWeekday(6))],
+      [/\bsunday\b/i,     () => addDays(new Date(), _daysToWeekday(0))],
+    ];
+    for (const [regex, getDate] of patterns) {
+      if (regex.test(text)) {
+        const d    = getDate();
+        const time = _parseTime(text);
+        if (time) {
+          d.setHours(time.hour, time.min, 0, 0);
+        } else {
+          d.setHours(23, 59, 0, 0);
+        }
+        const cleaned = text
+          .replace(regex, '')
+          .replace(_TIME_RE, '')
+          .replace(/\s{2,}/g, ' ')
+          .trim();
+        return { ts: d.getTime(), cleaned };
+      }
+    }
+    return null;
+  }
+
+  /* ── Habit heatmap builder ── */
+  function buildHeatmapHtml(habit) {
+    const compSet   = new Set(habit.completions || []);
+    const todayDate = new Date();
+    const todayStr  = dateStr(todayDate);
+    // Align to Monday of 12 weeks ago
+    const base = addDays(todayDate, -84);
+    const dow  = base.getDay();
+    const startDate = addDays(base, dow === 0 ? -6 : 1 - dow);
+    let d = new Date(startDate), prevMonth = '', weeks = [];
+    for (let w = 0; w < 13; w++) {
+      const m = d.toLocaleDateString([], { month: 'short' });
+      const label = m !== prevMonth ? (prevMonth = m, m) : '';
+      const cells = [];
+      for (let i = 0; i < 7; i++) {
+        const ds = dateStr(d);
+        cells.push(`<div class="heatmap-cell${compSet.has(ds)?' filled':''}${ds>todayStr?' faded':''}" title="${ds}"></div>`);
+        d = addDays(d, 1);
+      }
+      weeks.push(`<div class="heatmap-col"><div class="heatmap-month-label">${label}</div>${cells.join('')}</div>`);
+    }
+    return `<div class="habit-heatmap-grid">${weeks.join('')}</div>`;
+  }
+
   /* ── Drag & Drop ── */
   function onDragStart(e) { dragSrc = this; this.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; }
   function onDragOver(e) {
@@ -2415,11 +2673,18 @@
   });
 
   document.getElementById('addBtn').addEventListener('click', () => {
-    const input    = document.getElementById('newTodo');
-    const priority = document.getElementById('priorityPick').value;
-    const recur    = document.getElementById('recurPick').value;
+    const input     = document.getElementById('newTodo');
+    let   text      = input.value;
+    const priority  = document.getElementById('priorityPick').value;
+    const recur     = document.getElementById('recurPick').value;
     const reminders = getNewReminders();
-    addTodo(input.value, priority, newDueTs, recur, reminders);
+    // Parse natural-language dates from text if no due date already set
+    let due = newDueTs;
+    if (!due) {
+      const parsed = parseNaturalDate(text);
+      if (parsed) { text = parsed.cleaned; due = parsed.ts; }
+    }
+    addTodo(text, priority, due, recur, reminders);
     input.value = '';
     newDueTs = null;
     updateNewDueTrigger();
@@ -2499,7 +2764,59 @@
     });
   });
 
+  // Also exit today focus when switching tabs
+  document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (focusToday) {
+        focusToday = false;
+        document.getElementById('todayFocusBtn').classList.remove('active');
+      }
+    });
+  });
+
+  document.getElementById('todayFocusBtn').addEventListener('click', () => {
+    focusToday = !focusToday;
+    document.getElementById('todayFocusBtn').classList.toggle('active', focusToday);
+    render();
+  });
+
   render();
+
+  /* ── Keyboard shortcuts ── */
+  document.addEventListener('keydown', e => {
+    const tag = document.activeElement?.tagName;
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || document.activeElement?.isContentEditable) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key === '/' || e.key === 'f') {
+      e.preventDefault();
+      if (!document.getElementById('app').classList.contains('tab-habits')) {
+        document.getElementById('searchInput').focus();
+      }
+    }
+    if (e.key === 'n') {
+      e.preventDefault();
+      document.getElementById('newTodo').focus();
+      if (!document.getElementById('app').classList.contains('mobile-active')) {
+        document.querySelector('.tab-btn[data-tab="personal"]')?.click();
+      }
+    }
+    if (e.key === '1') { e.preventDefault(); document.querySelector('.tab-btn[data-tab="personal"]')?.click(); }
+    if (e.key === '2') { e.preventDefault(); document.querySelector('.tab-btn[data-tab="work"]')?.click(); }
+    if (e.key === 't') { e.preventDefault(); document.getElementById('todayFocusBtn')?.click(); }
+    if (e.key === 'Escape') {
+      if (focusToday) {
+        focusToday = false;
+        document.getElementById('todayFocusBtn').classList.remove('active');
+        render();
+      }
+      if (searchQuery) {
+        searchQuery = '';
+        document.getElementById('searchInput').value = '';
+        document.getElementById('searchClear').classList.remove('visible');
+        render();
+      }
+    }
+  });
 
   /* ── Email Notifications ── */
   const NOTIF_KEY = 'notif_settings';
@@ -2818,12 +3135,14 @@
         const filled    = compSet.has(d);
         const isToday   = d === todayStr;
         const scheduled = isScheduledDay(habit, d);
+        const isPast    = d <= todayStr;
         const dayObj    = new Date(d + 'T12:00:00');
         let cls = 'habit-dot';
         if (filled)          cls += ' filled';
         else if (scheduled)  cls += ' scheduled';
         if (isToday)         cls += ' today-ring';
-        return `<div class="habit-day">
+        const dayCls = 'habit-day' + (isPast ? ' clickable' : '');
+        return `<div class="${dayCls}" data-date="${d}">
           <div class="${cls}"></div>
           <div class="habit-dot-label">${DAY_ABBR[dayObj.getDay()]}</div>
         </div>`;
@@ -2879,11 +3198,13 @@
         <div class="habit-grid">${dotsHtml}</div>
         <button class="habit-week-btn habit-week-next">&#8250;</button>
       </div>
+      <div class="habit-heatmap-wrap" style="display:none"></div>
       <div class="habit-card-footer">
         <button class="btn-mark-done${isDone ? ' done-state' : ''}">
           ${isDone ? '&#10003; Done today' : '&#9675; Mark done'}
         </button>
         <div class="habit-actions">
+          <button class="btn-h-heatmap" title="Toggle heatmap">&#9632;&#9632;&#9632;</button>
           <button class="btn-h-edit" title="Edit">&#9998;</button>
           <button class="btn-h-del" title="Delete">&#10005;</button>
         </div>
@@ -2893,6 +3214,12 @@
     card.querySelector('.btn-h-edit').addEventListener('click', () => openHabitModal(habit.id));
     card.querySelector('.btn-h-del').addEventListener('click', () => {
       if (confirm(`Delete "${habit.name}"?`)) deleteHabit(habit.id);
+    });
+    card.querySelector('.btn-h-heatmap').addEventListener('click', () => {
+      const wrap = card.querySelector('.habit-heatmap-wrap');
+      const showing = wrap.style.display !== 'none';
+      wrap.style.display = showing ? 'none' : 'block';
+      if (!showing) wrap.innerHTML = buildHeatmapHtml(habits.find(h => h.id === habit.id) || habit);
     });
 
     const prevBtn = card.querySelector('.habit-week-prev');
@@ -2908,6 +3235,54 @@
       weekOffset++;
       card.dataset.weekOffset = weekOffset;
       gridEl.innerHTML = getDotsHtml();
+    });
+
+    gridEl.addEventListener('click', e => {
+      const dayEl = e.target.closest('.habit-day.clickable');
+      if (!dayEl) return;
+      const dateKey = dayEl.dataset.date;
+      if (!dateKey || dateKey > today()) return;
+
+      const h = habits.find(hb => hb.id === habit.id);
+      if (!h) return;
+
+      const wasCompleted = (h.completions || []).includes(dateKey);
+      if (wasCompleted) {
+        h.completions = h.completions.filter(d => d !== dateKey);
+      } else {
+        h.completions = [...(h.completions || []), dateKey];
+        const newStreak = calcStreak(h);
+        if (newStreak > (h.bestStreak || 0)) h.bestStreak = newStreak;
+        if (dateKey === today()) playDing();
+      }
+      saveHabits();
+
+      // Sync compSet so getDotsHtml reflects the change
+      compSet.clear();
+      (h.completions || []).forEach(d => compSet.add(d));
+      gridEl.innerHTML = getDotsHtml();
+
+      // Update streak display
+      const streak = calcStreak(h);
+      card.querySelector('.streak-num').textContent = streak;
+      card.querySelector('.streak-box').className = 'streak-box' + (streak > 0 ? ' active' : '');
+      const bestEl = card.querySelector('.streak-best');
+      if (bestEl) bestEl.textContent = h.bestStreak > 0 ? `Best: ${h.bestStreak}` : '';
+
+      // If today was toggled, sync the mark-done button and global counts
+      if (dateKey === today()) {
+        const isDone = !wasCompleted;
+        card.classList.toggle('done-today', isDone);
+        const markBtn = card.querySelector('.btn-mark-done');
+        markBtn.className = 'btn-mark-done' + (isDone ? ' done-state' : '');
+        markBtn.innerHTML = isDone ? '&#10003; Done today' : '&#9675; Mark done';
+        const dueHabits = habits.filter(isDueToday);
+        const doneToday = dueHabits.filter(completedToday).length;
+        document.getElementById('habitCount').innerHTML =
+          `<span>${doneToday}</span> / <span>${dueHabits.length}</span> done today`;
+        document.getElementById('badge-habits').textContent =
+          dueHabits.filter(hb => !completedToday(hb)).length;
+      }
     });
 
     listEl.appendChild(card);
@@ -2955,9 +3330,15 @@
     card.querySelector('.habit-grid').innerHTML = days.map(d => {
       const filled = compSet.has(d);
       const isToday = d === todayStr;
+      const isPast = d <= todayStr;
+      const scheduled = isScheduledDay(h, d);
       const dayObj = new Date(d + 'T12:00:00');
-      return `<div class="habit-day">
-        <div class="habit-dot${filled?' filled':''}${isToday?' today-ring':''}"></div>
+      let dotCls = 'habit-dot';
+      if (filled) dotCls += ' filled';
+      else if (scheduled) dotCls += ' scheduled';
+      if (isToday) dotCls += ' today-ring';
+      return `<div class="habit-day${isPast ? ' clickable' : ''}" data-date="${d}">
+        <div class="${dotCls}"></div>
         <div class="habit-dot-label">${DAY_ABBR[dayObj.getDay()]}</div>
       </div>`;
     }).join('');
@@ -3645,10 +4026,29 @@
         el = document.createElement('div');
         el.id = 'driveSyncStatus';
         el.style.cssText = 'font-size:0.7rem;color:#888;text-align:center;margin-top:4px;min-height:1em;';
-        const btn = document.getElementById('gcalConnectBtn');
-        btn.parentNode.insertBefore(el, btn.nextSibling);
+        // Status text span
+        const span = document.createElement('span');
+        span.id = 'driveSyncText';
+        el.appendChild(span);
+        // Refresh button
+        const refreshBtn = document.createElement('button');
+        refreshBtn.id = 'syncRefreshBtn';
+        refreshBtn.title = 'Refresh sync';
+        refreshBtn.style.display = 'none';
+        refreshBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>`;
+        refreshBtn.addEventListener('click', async () => {
+          refreshBtn.classList.add('spinning');
+          document.getElementById('driveSyncText').textContent = '☁ Syncing...';
+          try { await drivePull(); } catch(e) { setSyncStatus('☁ Sync failed'); }
+          refreshBtn.classList.remove('spinning');
+        });
+        el.appendChild(refreshBtn);
+        const gcalBtn = document.getElementById('gcalConnectBtn');
+        gcalBtn.parentNode.insertBefore(el, gcalBtn.nextSibling);
       }
-      el.textContent = msg;
+      document.getElementById('driveSyncText').textContent = msg;
+      const refreshBtn = document.getElementById('syncRefreshBtn');
+      if (refreshBtn) refreshBtn.style.display = gcalToken ? 'inline-flex' : 'none';
     }
 
     // Silent auto-connect: retry until GIS library is ready
